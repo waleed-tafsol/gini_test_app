@@ -1,15 +1,17 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:sound_stream/sound_stream.dart';
+import 'package:uuid/uuid.dart';
 
 import 'permission_handler.dart';
 import 'ui_event.dart';
 import 'websocket_manager.dart';
 
 class AudioProvider extends ChangeNotifier {
-  final String _wsUrl = 'wss://ws.ifelse.io';
+  final String _wsUrl = 'wss://4aba4e330cf3.ngrok-free.app/ws';
   late final WebSocketManager _webSocketManager;
 
   // sound_stream instances
@@ -69,6 +71,10 @@ class AudioProvider extends ChangeNotifier {
   }
 
   late StreamSubscription<Uint8List>? _audioStreamSubscription;
+
+  String? _sessionId;
+  static const int _sampleRate = 16000;
+  static const Uuid _uuid = Uuid();
 
   bool _isPlaying = false;
 
@@ -149,13 +155,29 @@ class AudioProvider extends ChangeNotifier {
     try {
       setStatusMessage = 'Starting audio stream...';
 
+      // Generate a new session ID for this streaming session
+      _sessionId = _uuid.v4();
+
       // Start recorder
       await _recorder.start();
 
       // Subscribe to audio stream and send to WebSocket
       _audioStreamSubscription = _recorder.audioStream.listen(
         (audioChunk) {
-          _webSocketManager.send(audioChunk);
+          // Convert audio chunk to base64
+          final base64Audio = base64Encode(audioChunk);
+
+          // Create JSON payload
+          final jsonPayload = {
+            'type': 'audio_data',
+            'session_id': _sessionId,
+            'audio': base64Audio,
+            'sample_rate': _sampleRate,
+          };
+
+          // Convert to JSON string and send
+          final jsonString = jsonEncode(jsonPayload);
+          _webSocketManager.send(jsonString);
         },
         onError: (error) {
           print('Audio stream error: $error');
@@ -187,6 +209,9 @@ class AudioProvider extends ChangeNotifier {
 
       // Stop player
       await _player.stop();
+
+      // Clear session ID
+      _sessionId = null;
 
       setIsRecording = false;
       setStatusMessage = 'Recording stopped';

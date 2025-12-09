@@ -250,42 +250,64 @@ class _AudioPageState extends State<AudioPage> {
                 SizedBox(height: 20),
 
                 // Audio control button
-                ElevatedButton(
-                  onPressed:
-                      audioProvider.getIsConnected &&
-                          !audioProvider.getIsRecording
-                      ? audioProvider.startStreamingAudio
-                      : audioProvider.getIsRecording
-                      ? audioProvider.stopStreamingAudio
-                      : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: audioProvider.getIsRecording
-                        ? Colors.red
-                        : (audioProvider.getIsConnected
-                              ? Colors.green
-                              : Colors.grey),
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        audioProvider.getIsRecording ? Icons.stop : Icons.mic,
-                        color: Colors.white,
-                      ),
-                      SizedBox(width: 10),
-                      Text(
-                        audioProvider.getIsRecording
-                            ? 'Stop Streaming'
-                            : 'Start Recording & Streaming',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ],
+                GestureDetector(
+                  onTapDown: (details) {
+                    if (audioProvider.getIsConnected &&
+                        !audioProvider.getIsRecording) {
+                      audioProvider.startStreamingAudio();
+                    }
+                  },
+                  onTapUp: (details) {
+                    if (audioProvider.getIsRecording) {
+                      audioProvider.stopStreamingAudio();
+                    }
+                  },
+                  onTapCancel: () {
+                    if (audioProvider.getIsRecording) {
+                      audioProvider.stopStreamingAudio();
+                    }
+                  },
+                  child: Container(
+                    width: double.infinity, // Or set a specific width
+                    padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                    decoration: BoxDecoration(
+                      color: audioProvider.getIsRecording
+                          ? Colors.red
+                          : (audioProvider.getIsConnected
+                                ? Colors.green
+                                : Colors.grey),
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 4,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          audioProvider.getIsRecording ? Icons.stop : Icons.mic,
+                          color: Colors.white,
+                        ),
+                        SizedBox(width: 10),
+                        Text(
+                          audioProvider.getIsRecording
+                              ? 'Stop Streaming'
+                              : 'Start Recording & Streaming',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-
                 SizedBox(height: 20),
-
                 // Player status
                 Card(
                   child: Padding(
