@@ -14,12 +14,29 @@ class AudioPage extends StatefulWidget {
   State<AudioPage> createState() => _AudioPageState();
 }
 
-class _AudioPageState extends State<AudioPage> {
+class _AudioPageState extends State<AudioPage>
+    with SingleTickerProviderStateMixin {
   StreamSubscription<UIEvent>? _uiEventSubscription;
+  late AnimationController _recordingAnimationController;
+  late Animation<double> _pulseAnimation;
+  bool _wasRecording = false;
 
   @override
   void initState() {
     super.initState();
+    // Initialize animation controller
+    _recordingAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
+
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.3).animate(
+      CurvedAnimation(
+        parent: _recordingAnimationController,
+        curve: Curves.easeInOut,
+      ),
+    );
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final audioProvider = context.read<AudioProvider>();
       _uiEventSubscription = audioProvider.uiEvents.listen(_handleUIEvent);
@@ -30,6 +47,7 @@ class _AudioPageState extends State<AudioPage> {
   @override
   void dispose() {
     _uiEventSubscription?.cancel();
+    _recordingAnimationController.dispose();
     super.dispose();
   }
 
@@ -146,6 +164,18 @@ class _AudioPageState extends State<AudioPage> {
   Widget build(BuildContext context) {
     return Consumer<AudioProvider>(
       builder: (_, audioProvider, __) {
+        // Update animation state based on recording status
+        final isRecording = audioProvider.getIsRecording;
+        if (isRecording != _wasRecording) {
+          _wasRecording = isRecording;
+          if (isRecording) {
+            _recordingAnimationController.repeat(reverse: true);
+          } else {
+            _recordingAnimationController.stop();
+            _recordingAnimationController.reset();
+          }
+        }
+
         return Scaffold(
           appBar: AppBar(
             title: const Text('Two-Way Audio Demo (sound_stream)'),
@@ -249,62 +279,81 @@ class _AudioPageState extends State<AudioPage> {
 
                 SizedBox(height: 20),
 
-                // Audio control button
-                GestureDetector(
-                  onTapDown: (details) {
-                    if (audioProvider.getIsConnected &&
-                        !audioProvider.getIsRecording) {
-                      audioProvider.startStreamingAudio();
-                    }
-                  },
-                  onTapUp: (details) {
-                    if (audioProvider.getIsRecording) {
-                      audioProvider.stopStreamingAudio();
-                    }
-                  },
-                  onTapCancel: () {
-                    if (audioProvider.getIsRecording) {
-                      audioProvider.stopStreamingAudio();
-                    }
-                  },
-                  child: Container(
-                    width: double.infinity, // Or set a specific width
-                    padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                    decoration: BoxDecoration(
-                      color: audioProvider.getIsRecording
-                          ? Colors.red
-                          : (audioProvider.getIsConnected
-                                ? Colors.green
-                                : Colors.grey),
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 4,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          audioProvider.getIsRecording ? Icons.stop : Icons.mic,
-                          color: Colors.white,
-                        ),
-                        SizedBox(width: 10),
-                        Text(
-                          audioProvider.getIsRecording
-                              ? 'Stop Streaming'
-                              : 'Start Recording & Streaming',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
+                // Mic icon in circle - animated when recording
+                Center(
+                  child: GestureDetector(
+                    onTapDown: (details) {
+                      if (audioProvider.getIsConnected &&
+                          !audioProvider.getIsRecording) {
+                        audioProvider.startStreamingAudio();
+                      }
+                    },
+                    onTapUp: (details) {
+                      if (audioProvider.getIsRecording) {
+                        audioProvider.stopStreamingAudio();
+                      }
+                    },
+                    onTapCancel: () {
+                      if (audioProvider.getIsRecording) {
+                        audioProvider.stopStreamingAudio();
+                      }
+                    },
+                    child: audioProvider.getIsRecording
+                        ? AnimatedBuilder(
+                            animation: _pulseAnimation,
+                            builder: (context, child) {
+                              return Container(
+                                width: 80 * _pulseAnimation.value,
+                                height: 80 * _pulseAnimation.value,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.red.withOpacity(0.3),
+                                ),
+                                child: Center(
+                                  child: Container(
+                                    width: 60,
+                                    height: 60,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.red,
+                                    ),
+                                    child: Icon(
+                                      Icons.mic,
+                                      color: Colors.white,
+                                      size: 30,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          )
+                        : Container(
+                            width: 80,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: audioProvider.getIsConnected
+                                  ? Colors.green.withOpacity(0.3)
+                                  : Colors.grey.withOpacity(0.3),
+                            ),
+                            child: Center(
+                              child: Container(
+                                width: 60,
+                                height: 60,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: audioProvider.getIsConnected
+                                      ? Colors.green
+                                      : Colors.grey,
+                                ),
+                                child: Icon(
+                                  Icons.mic,
+                                  color: Colors.white,
+                                  size: 30,
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
                   ),
                 ),
                 SizedBox(height: 20),
