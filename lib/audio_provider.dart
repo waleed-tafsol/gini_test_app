@@ -1,19 +1,47 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:flutter/cupertino.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter/foundation.dart';
 import 'package:sound_stream/sound_stream.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
+
+import 'permission_handler.dart';
+import 'ui_event.dart';
+import 'websocket_manager.dart';
 
 class AudioProvider extends ChangeNotifier {
-  final String _wsUrl = 'wss://echo.websocket.events';
-  WebSocketChannel? _channel;
+  final String _wsUrl = 'wss://ws.ifelse.io';
+  late final WebSocketManager _webSocketManager;
 
   // sound_stream instances
   final RecorderStream _recorder = RecorderStream();
 
   final PlayerStream _player = PlayerStream();
+
+  // Permission handler
+  final PermissionHandler _permissionHandler = PermissionHandler();
+
+  // Event stream for UI events
+  final StreamController<UIEvent> _uiEventController =
+      StreamController<UIEvent>.broadcast();
+  Stream<UIEvent> get uiEvents => _uiEventController.stream;
+
+  void _emitEvent(UIEvent event) {
+    _uiEventController.add(event);
+  }
+
+  AudioProvider() {
+    _webSocketManager = WebSocketManager(url: _wsUrl);
+    _webSocketManager.onDataReceived = _handleWebSocketData;
+    _webSocketManager.onStatusChanged = (message) => setStatusMessage = message;
+    _webSocketManager.onError = (error) {
+      setIsConnected = false;
+      stopStreamingAudio();
+    };
+    _webSocketManager.onDisconnected = () {
+      setIsConnected = false;
+      stopStreamingAudio();
+    };
+  }
 
   bool _isRecording = false;
 
@@ -24,12 +52,10 @@ class AudioProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  bool _isConnected = false;
-
-  bool get getIsConnected => _isConnected;
+  bool get getIsConnected => _webSocketManager.isConnected;
 
   set setIsConnected(bool value) {
-    _isConnected = value;
+    // This setter is kept for compatibility but the actual state is managed by WebSocketManager
     notifyListeners();
   }
 
@@ -41,8 +67,8 @@ class AudioProvider extends ChangeNotifier {
     _statusMessage = value;
     notifyListeners();
   }
+
   late StreamSubscription<Uint8List>? _audioStreamSubscription;
-  StreamSubscription? _socketSubscription;
 
   bool _isPlaying = false;
 
@@ -61,51 +87,42 @@ class AudioProvider extends ChangeNotifier {
   Future<void> initializeApp() async {
     try {
       setStatusMessage = 'Initializing...';
-      await _requestPermissions();
+      final permissionResult = await _permissionHandler.requestPermissions();
+
+      if (!permissionResult.isGranted) {
+        if (permissionResult.isPermanentlyDenied) {
+          _emitEvent(
+            PermissionPermanentlyDeniedEvent(
+              permissionName: permissionResult.permissionName,
+              message:
+                  '${permissionResult.permissionName} permission is required for this app to function properly. '
+                  'It has been permanently denied. Please enable it in the app settings.',
+            ),
+          );
+        } else {
+          _emitEvent(
+            PermissionDeniedEvent(
+              permissionName: permissionResult.permissionName,
+              message: '${permissionResult.permissionName} permission denied',
+            ),
+          );
+        }
+        setStatusMessage = 'Initialization failed: Permission denied';
+        return;
+      }
+
       await _initializeAudio();
-      await _connectWebSocket();
+      await _webSocketManager.connect();
+      notifyListeners();
     } catch (e) {
       setStatusMessage = 'Initialization failed: $e';
-    }
-  }
-
-  Future<void> _requestPermissions() async {
-    final status = await Permission.microphone.request();
-    if (!status.isGranted) {
-      throw Exception('Microphone permission denied');
+      _emitEvent(ErrorEvent(message: 'Initialization failed: $e'));
     }
   }
 
   Future<void> _initializeAudio() async {
     await _recorder.initialize();
     await _player.initialize();
-  }
-
-  Future<void> _connectWebSocket() async {
-    try {
-      _channel = WebSocketChannel.connect(Uri.parse(_wsUrl));
-
-      _socketSubscription = _channel!.stream.listen(
-        _handleWebSocketData,
-        onError: (error) {
-          setIsConnected = false;
-          setStatusMessage = 'WebSocket error: $error';
-          stopStreamingAudio();
-        },
-        onDone: () {
-          setIsConnected = false;
-          setStatusMessage = 'WebSocket disconnected';
-          stopStreamingAudio();
-        },
-      );
-
-      setIsConnected = true;
-      setStatusMessage = 'Connected to WebSocket';
-    } catch (e) {
-      setIsConnected = false;
-      setStatusMessage = 'Failed to connect: $e';
-    }
-    notifyListeners();
   }
 
   void _handleWebSocketData(dynamic data) {
@@ -122,7 +139,7 @@ class AudioProvider extends ChangeNotifier {
   }
 
   Future<void> startStreamingAudio() async {
-    if (!_isConnected) {
+    if (!_webSocketManager.isConnected) {
       setStatusMessage = 'Not connected to WebSocket';
       return;
     }
@@ -138,13 +155,7 @@ class AudioProvider extends ChangeNotifier {
       // Subscribe to audio stream and send to WebSocket
       _audioStreamSubscription = _recorder.audioStream.listen(
         (audioChunk) {
-          if (_channel != null && _channel!.closeCode == null) {
-            try {
-              _channel!.sink.add(audioChunk);
-            } catch (e) {
-              print('Error sending audio chunk: $e');
-            }
-          }
+          _webSocketManager.send(audioChunk);
         },
         onError: (error) {
           print('Audio stream error: $error');
@@ -186,29 +197,49 @@ class AudioProvider extends ChangeNotifier {
   }
 
   Future<void> reconnect() async {
+    final permissionResult = await _permissionHandler.requestPermissions();
+
+    if (!permissionResult.isGranted) {
+      if (permissionResult.isPermanentlyDenied) {
+        _emitEvent(
+          PermissionPermanentlyDeniedEvent(
+            permissionName: permissionResult.permissionName,
+            message:
+                '${permissionResult.permissionName} permission is required for this app to function properly. '
+                'It has been permanently denied. Please enable it in the app settings.',
+          ),
+        );
+      } else {
+        _emitEvent(
+          PermissionDeniedEvent(
+            permissionName: permissionResult.permissionName,
+            message: '${permissionResult.permissionName} permission denied',
+          ),
+        );
+      }
+      setStatusMessage =
+          'Permission denied, please grant permission in settings';
+      return;
+    }
+
     await stopStreamingAudio();
-    await disconnectWebSocket();
-    await _connectWebSocket();
+    await _webSocketManager.reconnect();
+    notifyListeners();
   }
 
   Future<void> disconnectWebSocket() async {
-    await _socketSubscription?.cancel();
-    _socketSubscription = null;
-
-    await _channel?.sink.close();
-    _channel = null;
-
-    setIsConnected = false;
+    await _webSocketManager.disconnect();
     setIsRecording = false;
+    notifyListeners();
   }
 
   @override
   void dispose() {
-    // TODO: implement dispose
     super.dispose();
     stopStreamingAudio();
-    disconnectWebSocket();
+    _webSocketManager.dispose();
     _recorder.dispose();
     _player.dispose();
+    _uiEventController.close();
   }
 }

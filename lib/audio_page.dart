@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 
 import 'audio_provider.dart';
+import 'ui_event.dart';
 
 class AudioPage extends StatefulWidget {
   const AudioPage({super.key});
@@ -11,13 +15,131 @@ class AudioPage extends StatefulWidget {
 }
 
 class _AudioPageState extends State<AudioPage> {
+  StreamSubscription<UIEvent>? _uiEventSubscription;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // Access the Provider here after the first build frame
-      await context.read<AudioProvider>().initializeApp();
+      final audioProvider = context.read<AudioProvider>();
+      _uiEventSubscription = audioProvider.uiEvents.listen(_handleUIEvent);
+      await audioProvider.initializeApp();
     });
+  }
+
+  @override
+  void dispose() {
+    _uiEventSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _handleUIEvent(UIEvent event) {
+    if (!mounted) return;
+
+    if (event is PermissionPermanentlyDeniedEvent) {
+      _showPermissionPermanentlyDeniedDialog(event);
+    } else if (event is PermissionDeniedEvent) {
+      _showPermissionDeniedDialog(event);
+    } else if (event is ErrorEvent) {
+      _showErrorDialog(event);
+    } else if (event is ConfirmationDialogEvent) {
+      _showConfirmationDialog(event);
+    }
+  }
+
+  Future<void> _showPermissionPermanentlyDeniedDialog(
+    PermissionPermanentlyDeniedEvent event,
+  ) async {
+    if (!mounted) return;
+
+    final shouldOpenSettings = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Permission Required'),
+          content: Text(event.message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Open Settings'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldOpenSettings == true) {
+      await openAppSettings();
+    }
+  }
+
+  Future<void> _showPermissionDeniedDialog(PermissionDeniedEvent event) async {
+    if (!mounted) return;
+
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Permission Denied'),
+          content: Text(event.message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _showErrorDialog(ErrorEvent event) async {
+    if (!mounted) return;
+
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Error'),
+          content: Text(event.message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _showConfirmationDialog(ConfirmationDialogEvent event) async {
+    if (!mounted) return;
+
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(event.title),
+          content: Text(event.message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(event.cancelText),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(event.confirmText),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -37,10 +159,14 @@ class _AudioPageState extends State<AudioPage> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: audioProvider.getIsConnected ? Colors.green[50] : Colors.red[50],
+                    color: audioProvider.getIsConnected
+                        ? Colors.green[50]
+                        : Colors.red[50],
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: audioProvider.getIsConnected ? Colors.green : Colors.red,
+                      color: audioProvider.getIsConnected
+                          ? Colors.green
+                          : Colors.red,
                     ),
                   ),
                   child: Column(
@@ -58,14 +184,20 @@ class _AudioPageState extends State<AudioPage> {
                             height: 10,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: audioProvider.getIsConnected ? Colors.green : Colors.red,
+                              color: audioProvider.getIsConnected
+                                  ? Colors.green
+                                  : Colors.red,
                             ),
                           ),
                           SizedBox(width: 8),
                           Text(
-                            audioProvider.getIsConnected ? 'Connected' : 'Disconnected',
+                            audioProvider.getIsConnected
+                                ? 'Connected'
+                                : 'Disconnected',
                             style: TextStyle(
-                              color: audioProvider.getIsConnected ? Colors.green : Colors.red,
+                              color: audioProvider.getIsConnected
+                                  ? Colors.green
+                                  : Colors.red,
                             ),
                           ),
                         ],
@@ -81,9 +213,15 @@ class _AudioPageState extends State<AudioPage> {
                   children: [
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: audioProvider.getIsConnected ? null : audioProvider.reconnect,
+                        onPressed: audioProvider.getIsConnected
+                            ? null
+                            : () => audioProvider.reconnect(),
                         icon: Icon(Icons.wifi, size: 20),
-                        label: Text(audioProvider.getIsConnected ? 'Connected' : 'Reconnect'),
+                        label: Text(
+                          audioProvider.getIsConnected
+                              ? 'Connected'
+                              : 'Reconnect',
+                        ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: audioProvider.getIsConnected
                               ? Colors.green
@@ -95,7 +233,9 @@ class _AudioPageState extends State<AudioPage> {
                     SizedBox(width: 10),
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: audioProvider.getIsConnected ? audioProvider.disconnectWebSocket : null,
+                        onPressed: audioProvider.getIsConnected
+                            ? audioProvider.disconnectWebSocket
+                            : null,
                         icon: Icon(Icons.wifi_off, size: 20),
                         label: Text('Disconnect'),
                         style: ElevatedButton.styleFrom(
@@ -111,7 +251,9 @@ class _AudioPageState extends State<AudioPage> {
 
                 // Audio control button
                 ElevatedButton(
-                  onPressed: audioProvider.getIsConnected && !audioProvider.getIsRecording
+                  onPressed:
+                      audioProvider.getIsConnected &&
+                          !audioProvider.getIsRecording
                       ? audioProvider.startStreamingAudio
                       : audioProvider.getIsRecording
                       ? audioProvider.stopStreamingAudio
@@ -119,7 +261,9 @@ class _AudioPageState extends State<AudioPage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: audioProvider.getIsRecording
                         ? Colors.red
-                        : (audioProvider.getIsConnected ? Colors.green : Colors.grey),
+                        : (audioProvider.getIsConnected
+                              ? Colors.green
+                              : Colors.grey),
                     padding: EdgeInsets.symmetric(vertical: 16),
                   ),
                   child: Row(
@@ -164,7 +308,9 @@ class _AudioPageState extends State<AudioPage> {
                               ? '🟢 Live - Streaming to WebSocket'
                               : '⏹️ Stopped',
                           style: TextStyle(
-                            color: audioProvider.getIsRecording ? Colors.green : Colors.grey,
+                            color: audioProvider.getIsRecording
+                                ? Colors.green
+                                : Colors.grey,
                           ),
                         ),
                       ],

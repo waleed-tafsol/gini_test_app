@@ -14,9 +14,11 @@ class MyApp extends StatelessWidget {
       title: 'WS Audio (sound_stream)',
       home: MultiProvider(
         providers: [
-          ChangeNotifierProvider(create: (context) => AudioProvider()),
+          ChangeNotifierProvider<AudioProvider>(
+            create: (context) => AudioProvider(),
+          ),
         ],
-        child: AudioPage(),
+        child: const AudioPage(),
       ),
     );
   }
