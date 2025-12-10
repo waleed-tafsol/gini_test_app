@@ -1,11 +1,6 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:typed_data';
-
 import 'package:flutter/foundation.dart';
 import 'package:sound_stream/sound_stream.dart';
-import 'package:uuid/uuid.dart';
-
 import 'permission_handler.dart';
 import 'ui_event.dart';
 import 'websocket_manager.dart';
@@ -72,10 +67,6 @@ class AudioProvider extends ChangeNotifier {
 
   late StreamSubscription<Uint8List>? _audioStreamSubscription;
 
-  String? _sessionId;
-  static const int _sampleRate = 16000;
-  static const Uuid _uuid = Uuid();
-
   bool _isPlaying = false;
 
   bool get isPlaying => _isPlaying;
@@ -126,8 +117,24 @@ class AudioProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> sendTestMessage() async {
+    if (_webSocketManager.isConnected) {
+      _webSocketManager.send({
+        "type": "audio_data",
+
+        "session_id": "uuid-string",
+
+        "audio": "base64-encoded-pcm16-data",
+
+        "sample_rate": 16000,
+      });
+    } else {
+      setStatusMessage = 'WebSocket not connected';
+    }
+  }
+
   Future<void> _initializeAudio() async {
-    await _recorder.initialize();
+    await _recorder.initialize(sampleRate: 16000);
     await _player.initialize();
   }
 
@@ -136,11 +143,15 @@ class AudioProvider extends ChangeNotifier {
       try {
         _player.writeChunk(data);
       } catch (e) {
-        print('Error writing to player: $e');
+        if (kDebugMode) {
+          print('Error writing to player: $e');
+        }
       }
     } else if (data is String) {
       // Handle string messages from server
-      print('Server message: $data');
+      if (kDebugMode) {
+        print('Server message: $data');
+      }
     }
   }
 
@@ -155,32 +166,18 @@ class AudioProvider extends ChangeNotifier {
     try {
       setStatusMessage = 'Starting audio stream...';
 
-      // Generate a new session ID for this streaming session
-      _sessionId = _uuid.v4();
-
       // Start recorder
       await _recorder.start();
 
       // Subscribe to audio stream and send to WebSocket
       _audioStreamSubscription = _recorder.audioStream.listen(
         (audioChunk) {
-          // Convert audio chunk to base64
-          final base64Audio = base64Encode(audioChunk);
-
-          // Create JSON payload
-          final jsonPayload = {
-            'type': 'audio_data',
-            'session_id': _sessionId,
-            'audio': base64Audio,
-            'sample_rate': _sampleRate,
-          };
-
-          // Convert to JSON string and send
-          final jsonString = jsonEncode(jsonPayload);
-          _webSocketManager.send(jsonString);
+          _webSocketManager.send(audioChunk);
         },
         onError: (error) {
-          print('Audio stream error: $error');
+          if (kDebugMode) {
+            print('Audio stream error: $error');
+          }
           stopStreamingAudio();
         },
       );
@@ -210,13 +207,12 @@ class AudioProvider extends ChangeNotifier {
       // Stop player
       await _player.stop();
 
-      // Clear session ID
-      _sessionId = null;
-
       setIsRecording = false;
       setStatusMessage = 'Recording stopped';
     } catch (e) {
-      print('Error stopping audio: $e');
+      if (kDebugMode) {
+        print('Error stopping audio: $e');
+      }
       setStatusMessage = 'Error stopping: $e';
     }
   }
