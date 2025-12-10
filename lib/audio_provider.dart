@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:sound_stream/sound_stream.dart';
+import 'models/socket_message_models.dart';
 import 'permission_handler.dart';
 import 'ui_event.dart';
 import 'websocket_manager.dart';
@@ -172,7 +174,11 @@ class AudioProvider extends ChangeNotifier {
       // Subscribe to audio stream and send to WebSocket
       _audioStreamSubscription = _recorder.audioStream.listen(
         (audioChunk) {
-          _webSocketManager.send(audioChunk);
+          final messageModel = AudioMessageModel(
+            sessionId: "0000",
+            audio: base64Encode(audioChunk),
+          );
+          _webSocketManager.send(messageModel.toJson());
         },
         onError: (error) {
           if (kDebugMode) {
@@ -198,6 +204,7 @@ class AudioProvider extends ChangeNotifier {
 
     try {
       // Stop recorder
+      _webSocketManager.send(AudioEndMessageModel(sessionId: "0000").toJson());
       await _recorder.stop();
 
       // Cancel audio stream subscription
