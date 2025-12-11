@@ -5,7 +5,6 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:gini_test_app/models/ai_chat_messages.dart';
 import 'package:sound_stream/sound_stream.dart';
-import 'package:uuid/uuid.dart';
 
 import 'permission_handler.dart';
 import 'ui_event.dart';
@@ -70,6 +69,20 @@ class AudioProvider extends ChangeNotifier {
 
   set setStatusMessage(String value) {
     _statusMessage = value;
+    notifyListeners();
+  }
+
+  String _streamedResponse = '';
+
+  String get getStreamedResponse => _streamedResponse;
+
+  void _appendStreamedResponse(String text) {
+    _streamedResponse += text;
+    notifyListeners();
+  }
+
+  void _clearStreamedResponse() {
+    _streamedResponse = '';
     notifyListeners();
   }
 
@@ -161,8 +174,8 @@ class AudioProvider extends ChangeNotifier {
             final pcmData = base64Decode(pcmDataBase64);
             
             // Write to player
-            _player.writeChunk(pcmData);
             _player.start();
+            _player.writeChunk(pcmData);
             // Optionally log chunk info
             final chunkIdx = jsonData['chunk_idx'];
             final text = jsonData['text'] as String?;
@@ -180,7 +193,14 @@ class AudioProvider extends ChangeNotifier {
           addMessage(AiChatMessages(role: 'user', content: jsonData['text']));
         }
         if(type == "tts_complete"){
-          addMessage(AiChatMessages(role: 'user', content: jsonData['full_response']));
+          _player.stop();
+          addMessage(AiChatMessages(role: 'ai', content: jsonData['full_response']));
+        }
+        if(type == "streamed_response"){
+          final response = jsonData['response'] as String?;
+          if (response != null && response.isNotEmpty) {
+            _appendStreamedResponse(response);
+          }
         }
       } catch (e) {
         print('Error parsing WebSocket message: $e');
@@ -199,6 +219,9 @@ class AudioProvider extends ChangeNotifier {
 
     try {
       setStatusMessage = 'Starting audio stream...';
+      
+      // Clear previous streamed response for new session
+      _clearStreamedResponse();
 
       // Generate a new session ID for this streaming session
       //TODO: persist session id for reconnection
@@ -289,6 +312,35 @@ class AudioProvider extends ChangeNotifier {
       setStatusMessage = 'Error stopping: $e';
     }
   }
+
+  Future<void> interruptStreamingAudio() async {
+    try {
+       _player.stop();
+
+      final jsonPayload = {
+        'type': 'interrupt',
+        'session_id': _sessionId,
+      };
+      // Convert to JSON string and send
+      final jsonString = jsonEncode(jsonPayload);
+      _webSocketManager.send(jsonString);
+      // Stop recorder
+
+      // Cancel audio stream subscription
+
+
+      // Stop player
+
+      // Clear session ID
+      // _sessionId = null;
+
+      setStatusMessage = 'Recording interrupted';
+    } catch (e) {
+      print('Error stopping audio: $e');
+      setStatusMessage = 'Error stopping: $e';
+    }
+  }
+
 
   Future<void> reconnect() async {
     final permissionResult = await _permissionHandler.requestPermissions();
