@@ -20,7 +20,7 @@ class AudioProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Flutter3DController _humanModelController = Flutter3DController();
+  final Flutter3DController _humanModelController = Flutter3DController();
 
   Flutter3DController get getHumanModelController => _humanModelController;
 
