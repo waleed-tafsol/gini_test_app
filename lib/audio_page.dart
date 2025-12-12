@@ -5,6 +5,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 
 import 'audio_provider.dart';
+import 'bottom_button.dart';
 import 'ui_event.dart';
 
 class AudioPage extends StatefulWidget {
@@ -14,28 +15,15 @@ class AudioPage extends StatefulWidget {
   State<AudioPage> createState() => _AudioPageState();
 }
 
-class _AudioPageState extends State<AudioPage>
-    with SingleTickerProviderStateMixin {
+class _AudioPageState extends State<AudioPage> {
   StreamSubscription<UIEvent>? _uiEventSubscription;
-  late AnimationController _recordingAnimationController;
-  late Animation<double> _pulseAnimation;
-  bool _wasRecording = false;
+
+  //late AnimationController _recordingAnimationController;
 
   @override
   void initState() {
     super.initState();
     // Initialize animation controller
-    _recordingAnimationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1000),
-    );
-
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.3).animate(
-      CurvedAnimation(
-        parent: _recordingAnimationController,
-        curve: Curves.easeInOut,
-      ),
-    );
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final audioProvider = context.read<AudioProvider>();
@@ -47,7 +35,7 @@ class _AudioPageState extends State<AudioPage>
   @override
   void dispose() {
     _uiEventSubscription?.cancel();
-    _recordingAnimationController.dispose();
+    // _recordingAnimationController.dispose();
     super.dispose();
   }
 
@@ -165,16 +153,6 @@ class _AudioPageState extends State<AudioPage>
     return Consumer<AudioProvider>(
       builder: (_, audioProvider, __) {
         // Update animation state based on recording status
-        final isRecording = audioProvider.getIsRecording;
-        if (isRecording != _wasRecording) {
-          _wasRecording = isRecording;
-          if (isRecording) {
-            _recordingAnimationController.repeat(reverse: true);
-          } else {
-            _recordingAnimationController.stop();
-            _recordingAnimationController.reset();
-          }
-        }
 
         return Scaffold(
           appBar: AppBar(
@@ -486,121 +464,7 @@ class _AudioPageState extends State<AudioPage>
                     ),
                   ],
                 ),
-                Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      GestureDetector(
-                        onTapDown: (details) {
-                          if (audioProvider.getIsConnected &&
-                              !audioProvider.getIsRecording) {
-                            audioProvider.startStreamingAudio();
-                          }
-                        },
-                        onTapUp: (details) {
-                          if (audioProvider.getIsRecording) {
-                            audioProvider.stopStreamingAudio();
-                          }
-                        },
-                        onTapCancel: () {
-                          if (audioProvider.getIsRecording) {
-                            audioProvider.stopStreamingAudio();
-                          }
-                        },
-                        child: audioProvider.getIsRecording
-                            ? AnimatedBuilder(
-                                animation: _pulseAnimation,
-                                builder: (context, child) {
-                                  return Container(
-                                    width: 80 * _pulseAnimation.value,
-                                    height: 80 * _pulseAnimation.value,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Colors.red.withOpacity(0.3),
-                                    ),
-                                    child: Center(
-                                      child: Container(
-                                        width: 60,
-                                        height: 60,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: Colors.red,
-                                        ),
-                                        child: Icon(
-                                          Icons.mic,
-                                          color: Colors.white,
-                                          size: 30,
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                },
-                              )
-                            : Container(
-                                width: 80,
-                                height: 80,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: audioProvider.getIsConnected
-                                      ? Colors.green.withOpacity(0.3)
-                                      : Colors.grey.withOpacity(0.3),
-                                ),
-                                child: Center(
-                                  child: Container(
-                                    width: 60,
-                                    height: 60,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: audioProvider.getIsConnected
-                                          ? Colors.green
-                                          : Colors.grey,
-                                    ),
-                                    child: Icon(
-                                      Icons.mic,
-                                      color: Colors.white,
-                                      size: 30,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                      ),
-                      SizedBox(width: 40),
-                      GestureDetector(
-                        onTap: () async {
-                          await audioProvider.interruptStreamingAudio();
-                        },
-                        child: Container(
-                          width: 80,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: audioProvider.getIsConnected
-                                ? Colors.orange.withOpacity(0.3)
-                                : Colors.grey.withOpacity(0.3),
-                          ),
-                          child: Center(
-                            child: Container(
-                              width: 60,
-                              height: 60,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: audioProvider.getIsConnected
-                                    ? Colors.orange
-                                    : Colors.grey,
-                              ),
-                              child: Icon(
-                                Icons.stop,
-                                color: Colors.white,
-                                size: 30,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                BottomButton(),
               ],
             ),
           ),
