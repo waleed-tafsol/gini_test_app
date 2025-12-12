@@ -19,7 +19,7 @@ class MyApp extends StatelessWidget {
             create: (context) => AudioProvider(),
           ),
         ],
-        child: const AudioPage(),
+        child: const HumanModelView(),
       ),
     );
   }
