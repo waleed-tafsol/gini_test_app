@@ -16,8 +16,6 @@ class AudioPage extends StatefulWidget {
 }
 
 class _AudioPageState extends State<AudioPage> {
-  StreamSubscription<UIEvent>? _uiEventSubscription;
-
   //late AnimationController _recordingAnimationController;
 
   @override
@@ -25,16 +23,16 @@ class _AudioPageState extends State<AudioPage> {
     super.initState();
     // Initialize animation controller
 
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final audioProvider = context.read<AudioProvider>();
-      _uiEventSubscription = audioProvider.uiEvents.listen(_handleUIEvent);
-      await audioProvider.initializeApp();
-    });
+    // WidgetsBinding.instance.addPostFrameCallback((_) async {
+    //   final audioProvider = context.read<AudioProvider>();
+    //   // Set the event handler callback in the provider
+    //   audioProvider.setUIEventHandler(_handleUIEvent);
+    //   await audioProvider.initializeApp();
+    // });
   }
 
   @override
   void dispose() {
-    _uiEventSubscription?.cancel();
     // _recordingAnimationController.dispose();
     super.dispose();
   }
@@ -171,98 +169,98 @@ class _AudioPageState extends State<AudioPage> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // Status display
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: audioProvider.getIsConnected
-                            ? Colors.green[50]
-                            : Colors.red[50],
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: audioProvider.getIsConnected
-                              ? Colors.green
-                              : Colors.red,
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Status: ${audioProvider.getStatusMessage}',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Container(
-                                width: 10,
-                                height: 10,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: audioProvider.getIsConnected
-                                      ? Colors.green
-                                      : Colors.red,
-                                ),
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                audioProvider.getIsConnected
-                                    ? 'Connected'
-                                    : 'Disconnected',
-                                style: TextStyle(
-                                  color: audioProvider.getIsConnected
-                                      ? Colors.green
-                                      : Colors.red,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    SizedBox(height: 20),
-
-                    // Control buttons
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: audioProvider.getIsConnected
-                                ? null
-                                : () => audioProvider.reconnect(),
-                            icon: Icon(Icons.wifi, size: 20),
-                            label: Text(
-                              audioProvider.getIsConnected
-                                  ? 'Connected'
-                                  : 'Reconnect',
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: audioProvider.getIsConnected
-                                  ? Colors.green
-                                  : Colors.blue,
-                              foregroundColor: Colors.white,
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: 10),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: audioProvider.getIsConnected
-                                ? audioProvider.disconnectWebSocket
-                                : null,
-                            icon: Icon(Icons.wifi_off, size: 20),
-                            label: Text('Disconnect'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                              foregroundColor: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    SizedBox(height: 20),
+                    // Container(
+                    //   padding: const EdgeInsets.all(12),
+                    //   decoration: BoxDecoration(
+                    //     color: audioProvider.getIsConnected
+                    //         ? Colors.green[50]
+                    //         : Colors.red[50],
+                    //     borderRadius: BorderRadius.circular(8),
+                    //     border: Border.all(
+                    //       color: audioProvider.getIsConnected
+                    //           ? Colors.green
+                    //           : Colors.red,
+                    //     ),
+                    //   ),
+                    //   child: Column(
+                    //     crossAxisAlignment: CrossAxisAlignment.start,
+                    //     children: [
+                    //       Text(
+                    //         'Status: ${audioProvider.getStatusMessage}',
+                    //         style: const TextStyle(fontWeight: FontWeight.bold),
+                    //       ),
+                    //       SizedBox(height: 4),
+                    //       Row(
+                    //         children: [
+                    //           Container(
+                    //             width: 10,
+                    //             height: 10,
+                    //             decoration: BoxDecoration(
+                    //               shape: BoxShape.circle,
+                    //               color: audioProvider.getIsConnected
+                    //                   ? Colors.green
+                    //                   : Colors.red,
+                    //             ),
+                    //           ),
+                    //           SizedBox(width: 8),
+                    //           Text(
+                    //             audioProvider.getIsConnected
+                    //                 ? 'Connected'
+                    //                 : 'Disconnected',
+                    //             style: TextStyle(
+                    //               color: audioProvider.getIsConnected
+                    //                   ? Colors.green
+                    //                   : Colors.red,
+                    //             ),
+                    //           ),
+                    //         ],
+                    //       ),
+                    //     ],
+                    //   ),
+                    // ),
+                    //
+                    // SizedBox(height: 20),
+                    //
+                    // // Control buttons
+                    // Row(
+                    //   children: [
+                    //     Expanded(
+                    //       child: ElevatedButton.icon(
+                    //         onPressed: audioProvider.getIsConnected
+                    //             ? null
+                    //             : () => audioProvider.reconnect(),
+                    //         icon: Icon(Icons.wifi, size: 20),
+                    //         label: Text(
+                    //           audioProvider.getIsConnected
+                    //               ? 'Connected'
+                    //               : 'Reconnect',
+                    //         ),
+                    //         style: ElevatedButton.styleFrom(
+                    //           backgroundColor: audioProvider.getIsConnected
+                    //               ? Colors.green
+                    //               : Colors.blue,
+                    //           foregroundColor: Colors.white,
+                    //         ),
+                    //       ),
+                    //     ),
+                    //     SizedBox(width: 10),
+                    //     Expanded(
+                    //       child: ElevatedButton.icon(
+                    //         onPressed: audioProvider.getIsConnected
+                    //             ? audioProvider.disconnectWebSocket
+                    //             : null,
+                    //         icon: Icon(Icons.wifi_off, size: 20),
+                    //         label: Text('Disconnect'),
+                    //         style: ElevatedButton.styleFrom(
+                    //           backgroundColor: Colors.red,
+                    //           foregroundColor: Colors.white,
+                    //         ),
+                    //       ),
+                    //     ),
+                    //   ],
+                    // ),
+                    //
+                    // SizedBox(height: 20),
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(12.0),

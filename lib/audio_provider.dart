@@ -27,8 +27,23 @@ class AudioProvider extends ChangeNotifier {
       StreamController<UIEvent>.broadcast();
   Stream<UIEvent> get uiEvents => _uiEventController.stream;
 
+  StreamSubscription<UIEvent>? _uiEventSubscription;
+  Function(UIEvent)? _uiEventHandler;
+
   void _emitEvent(UIEvent event) {
     _uiEventController.add(event);
+  }
+
+  void setUIEventHandler(Function(UIEvent) handler) {
+    _uiEventHandler = handler;
+    // Cancel existing subscription if any
+    _uiEventSubscription?.cancel();
+    // Create new subscription
+    _uiEventSubscription = uiEvents.listen((event) {
+      if (_uiEventHandler != null) {
+        _uiEventHandler!(event);
+      }
+    });
   }
 
   AudioProvider() {
@@ -331,6 +346,9 @@ class AudioProvider extends ChangeNotifier {
   void dispose() {
     super.dispose();
     stopStreamingAudio();
+    _uiEventSubscription?.cancel();
+    _uiEventSubscription = null;
+    _uiEventHandler = null;
     _webSocketManager.dispose();
     _recorder.dispose();
     _player.dispose();
