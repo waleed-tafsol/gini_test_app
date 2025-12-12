@@ -1,17 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
-
 import 'package:flutter/foundation.dart';
 import 'package:gini_test_app/models/ai_chat_messages.dart';
+import 'package:gini_test_app/models/socket_message_models.dart';
 import 'package:sound_stream/sound_stream.dart';
-
 import 'permission_handler.dart';
 import 'ui_event.dart';
 import 'websocket_manager.dart';
 
 class AudioProvider extends ChangeNotifier {
-  final String _wsUrl = 'wss://d22a62191343.ngrok-free.app/ws';
+  final String _wsUrl = 'wss://9e1459dc03e5.ngrok-free.app/ws';
   late final WebSocketManager _webSocketManager;
 
   final List<AiChatMessages> _messages = [];
@@ -26,7 +24,7 @@ class AudioProvider extends ChangeNotifier {
 
   // Event stream for UI events
   final StreamController<UIEvent> _uiEventController =
-  StreamController<UIEvent>.broadcast();
+      StreamController<UIEvent>.broadcast();
   Stream<UIEvent> get uiEvents => _uiEventController.stream;
 
   void _emitEvent(UIEvent event) {
@@ -88,7 +86,7 @@ class AudioProvider extends ChangeNotifier {
 
   late StreamSubscription<Uint8List>? _audioStreamSubscription;
 
-  String? _sessionId;
+  final String _sessionId = 'ue5_session_2D529EFA';
   static const int _sampleRate = 16000;
 
   bool _isPlaying = false;
@@ -116,7 +114,7 @@ class AudioProvider extends ChangeNotifier {
             PermissionPermanentlyDeniedEvent(
               permissionName: permissionResult.permissionName,
               message:
-              '${permissionResult.permissionName} permission is required for this app to function properly. '
+                  '${permissionResult.permissionName} permission is required for this app to function properly. '
                   'It has been permanently denied. Please enable it in the app settings.',
             ),
           );
@@ -153,60 +151,69 @@ class AudioProvider extends ChangeNotifier {
   }
 
   void _handleWebSocketData(dynamic data) {
-    if (data is Uint8List) {
+    if (data == null) return;
+    if (data.isEmpty) return;
+
+    if (data is String) {
       try {
-        _player.writeChunk(data);
-      } catch (e) {
-        print('Error writing to player: $e');
-      }
-    } else if (data is String) {
-      try {
-        // Parse JSON response
         final jsonData = jsonDecode(data) as Map<String, dynamic>;
         final type = jsonData['type'] as String?;
-
-        if (type == 'audio_pcm_ready') {
-          // Extract pcm_data from the response
-          final pcmDataBase64 = jsonData['pcm_data'] as String?;
-          
-          if (pcmDataBase64 != null && pcmDataBase64.isNotEmpty) {
-            // Decode base64 to Uint8List
-            final pcmData = base64Decode(pcmDataBase64);
-            
-            // Write to player
-            _player.start();
-            _player.writeChunk(pcmData);
-            // Optionally log chunk info
-            final chunkIdx = jsonData['chunk_idx'];
-            final text = jsonData['text'] as String?;
-            if (text != null && text.isNotEmpty) {
-              print('Received audio chunk $chunkIdx with text: $text');
-            } else {
-              print('Received audio chunk $chunkIdx');
-            }
-          }
-        } else {
-          // Handle other message types
-          print('Server message: $data');
-        }
-        if(type == "final_transcript"){
-          addMessage(AiChatMessages(role: 'user', content: jsonData['text']));
-        }
-        if(type == "tts_complete"){
-          _player.stop();
-          addMessage(AiChatMessages(role: 'ai', content: jsonData['full_response']));
-        }
-        if(type == "streamed_response"){
-          final response = jsonData['response'] as String?;
-          if (response != null && response.isNotEmpty) {
-            _appendStreamedResponse(response);
-          }
+        if (type == null) {
+          return;
+        } else if (type == 'audio_pcm_ready') {
+          _handelAudioPcmReady(jsonData);
+        } else if (type == "interrupt_acknowledged") {
+          _handelInteruptAcknowledged();
+        } else if (type == "final_transcript") {
+          _handelFinalTranscript(jsonData);
+        } else if (type == "tts_complete") {
+          _handelTTSComplete();
+        } else if (type == "streamed_response") {
+          _handelStreamedResponse(jsonData);
         }
       } catch (e) {
         print('Error parsing WebSocket message: $e');
         print('Raw data: $data');
       }
     }
+  }
+
+  void _handelAudioPcmReady(Map<String, dynamic> jsonData) {
+    final pcmDataBase64 = jsonData['pcm_data'] as String?;
+
+    if (pcmDataBase64 != null && pcmDataBase64.isNotEmpty) {
+      final pcmData = base64Decode(pcmDataBase64);
+      _player.start();
+      _player.writeChunk(pcmData);
+      // Optionally log chunk info
+      final chunkIdx = jsonData['chunk_idx'];
+      final text = jsonData['text'] as String?;
+      if (text != null && text.isNotEmpty) {
+        print('Received audio chunk $chunkIdx with text: $text');
+      } else {
+        print('Received audio chunk $chunkIdx');
+      }
+    }
+  }
+
+  void _handelStreamedResponse(Map<String, dynamic> jsonData) {
+    final response = jsonData['response'] as String?;
+    if (response != null && response.isNotEmpty) {
+      _appendStreamedResponse(response);
+    }
+  }
+
+  void _handelFinalTranscript(Map<String, dynamic> jsonData) {
+    addMessage(AiChatMessages(role: 'user', content: jsonData['text']));
+  }
+
+  void _handelTTSComplete() {
+    addMessage(AiChatMessages(role: 'ai', content: "Intrupted"));
+  }
+
+  void _handelInteruptAcknowledged() {
+    _player.stop();
+    setStatusMessage = 'Audio stream interrupted';
   }
 
   Future<void> startStreamingAudio() async {
@@ -219,48 +226,22 @@ class AudioProvider extends ChangeNotifier {
 
     try {
       setStatusMessage = 'Starting audio stream...';
-      
-      // Clear previous streamed response for new session
       _clearStreamedResponse();
-
-      // Generate a new session ID for this streaming session
-      //TODO: persist session id for reconnection
-      _sessionId = 'ue5_session_2D529EFA';
-
-      final jsonPayload = {
-        'type': 'start',
-        'session_id': _sessionId,
-        'sample_rate': _sampleRate,
-        'channels':1,
-        'chunk_duration_seconds':0,
-        'audio_format': 'pcm16',
-      };
-
-      // Convert to JSON string and send
-      final jsonString = jsonEncode(jsonPayload);
+      final startEvent = StartAudioMessageModel(
+        sessionId: _sessionId,
+        sampleRate: _sampleRate,
+      );
+      final jsonString = jsonEncode(startEvent.toJson());
       _webSocketManager.send(jsonString);
-
-      // Start recorder
       await _recorder.start();
-
-      // Subscribe to audio stream and send to WebSocket
       _audioStreamSubscription = _recorder.audioStream.listen(
-            (audioChunk) {
-          // Convert audio chunk to base64
-          final base64Audio = base64Encode(audioChunk);
-
-          // Create JSON payload
-          final jsonPayload = {
-            'type': 'audio',
-            'session_id': _sessionId,
-            'data': base64Audio,
-            'sample_rate': _sampleRate,
-            'channels':1,
-            'format': 'pcm16',
-          };
-
-          // Convert to JSON string and send
-          final jsonString = jsonEncode(jsonPayload);
+        (audioChunk) {
+          final msgEvent = AudioMessageModel(
+            sessionId: _sessionId,
+            audio: audioChunk,
+            sampleRate: _sampleRate,
+          );
+          final jsonString = jsonEncode(msgEvent.toJson());
           _webSocketManager.send(jsonString);
         },
         onError: (error) {
@@ -268,10 +249,7 @@ class AudioProvider extends ChangeNotifier {
           stopStreamingAudio();
         },
       );
-
-      // Start player
       await _player.start();
-
       setIsRecording = true;
       setStatusMessage = 'Recording and streaming...';
     } catch (e) {
@@ -284,27 +262,13 @@ class AudioProvider extends ChangeNotifier {
     if (!_isRecording) return;
 
     try {
-      final jsonPayload = {
-        'type': 'end',
-        'session_id': _sessionId,
-      };
-
-      // Convert to JSON string and send
-      final jsonString = jsonEncode(jsonPayload);
+      final endChatEvent = AudioEndMessageModel(sessionId: _sessionId);
+      final jsonString = jsonEncode(endChatEvent.toJson());
       _webSocketManager.send(jsonString);
-      // Stop recorder
       await _recorder.stop();
-
-      // Cancel audio stream subscription
       await _audioStreamSubscription?.cancel();
       _audioStreamSubscription = null;
-
-      // Stop player
       await _player.stop();
-
-      // Clear session ID
-     // _sessionId = null;
-
       setIsRecording = false;
       setStatusMessage = 'Recording stopped';
     } catch (e) {
@@ -315,32 +279,16 @@ class AudioProvider extends ChangeNotifier {
 
   Future<void> interruptStreamingAudio() async {
     try {
-       _player.stop();
-
-      final jsonPayload = {
-        'type': 'interrupt',
-        'session_id': _sessionId,
-      };
-      // Convert to JSON string and send
-      final jsonString = jsonEncode(jsonPayload);
+      _player.stop();
+      final interuptEvent = InteruptEventModel(sessionId: _sessionId);
+      final jsonString = jsonEncode(interuptEvent.toJson());
       _webSocketManager.send(jsonString);
-      // Stop recorder
-
-      // Cancel audio stream subscription
-
-
-      // Stop player
-
-      // Clear session ID
-      // _sessionId = null;
-
       setStatusMessage = 'Recording interrupted';
     } catch (e) {
       print('Error stopping audio: $e');
       setStatusMessage = 'Error stopping: $e';
     }
   }
-
 
   Future<void> reconnect() async {
     final permissionResult = await _permissionHandler.requestPermissions();
@@ -351,7 +299,7 @@ class AudioProvider extends ChangeNotifier {
           PermissionPermanentlyDeniedEvent(
             permissionName: permissionResult.permissionName,
             message:
-            '${permissionResult.permissionName} permission is required for this app to function properly. '
+                '${permissionResult.permissionName} permission is required for this app to function properly. '
                 'It has been permanently denied. Please enable it in the app settings.',
           ),
         );
@@ -364,7 +312,7 @@ class AudioProvider extends ChangeNotifier {
         );
       }
       setStatusMessage =
-      'Permission denied, please grant permission in settings';
+          'Permission denied, please grant permission in settings';
       return;
     }
 

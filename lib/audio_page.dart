@@ -181,7 +181,12 @@ class _AudioPageState extends State<AudioPage>
             title: const Text('Two-Way Audio Demo (sound_stream)'),
           ),
           body: Padding(
-            padding: const EdgeInsets.only(top: 20.0,left: 20.0,right: 20.0,bottom: 30.0),
+            padding: const EdgeInsets.only(
+              top: 20.0,
+              left: 20.0,
+              right: 20.0,
+              bottom: 30.0,
+            ),
             child: Stack(
               children: [
                 Column(
@@ -306,7 +311,9 @@ class _AudioPageState extends State<AudioPage>
                               ),
                             ),
                             // Streamed response
-                            if (audioProvider.getStreamedResponse.isNotEmpty) ...[
+                            if (audioProvider
+                                .getStreamedResponse
+                                .isNotEmpty) ...[
                               SizedBox(height: 12),
                               Divider(),
                               SizedBox(height: 8),
@@ -365,73 +372,107 @@ class _AudioPageState extends State<AudioPage>
                                       : Builder(
                                           builder: (context) {
                                             // Reverse the list so newest messages appear at the top
-                                            final reversedMessages = List.from(messages.reversed);
+                                            final reversedMessages = List.from(
+                                              messages.reversed,
+                                            );
                                             return ListView.builder(
                                               cacheExtent: 1000,
-                                              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                              itemCount: reversedMessages.length,
+                                              padding: EdgeInsets.symmetric(
+                                                horizontal: 12,
+                                                vertical: 12,
+                                              ),
+                                              itemCount:
+                                                  reversedMessages.length,
                                               itemBuilder: (context, index) {
                                                 // index 0 = newest message (at top of screen)
-                                                final message = reversedMessages[index];
-                                                final isUser = message.role == 'user';
+                                                final message =
+                                                    reversedMessages[index];
+                                                final isUser =
+                                                    message.role == 'user';
 
                                                 // Use a stable key based on original index
-                                                final originalIndex = messages.length - 1 - index;
-                                                final messageKey = 'msg_$originalIndex';
+                                                final originalIndex =
+                                                    messages.length - 1 - index;
+                                                final messageKey =
+                                                    'msg_$originalIndex';
 
                                                 return Padding(
-                                              key: ValueKey(messageKey),
-                                              padding: EdgeInsets.only(bottom: 12),
-                                              child: Row(
-                                                mainAxisAlignment: isUser
-                                                    ? MainAxisAlignment.start
-                                                    : MainAxisAlignment.end,
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  if (!isUser) Spacer(),
-                                                  Flexible(
-                                                    flex: 2,
-                                                    child: Container(
-                                                      padding: EdgeInsets.symmetric(
-                                                        horizontal: 12,
-                                                        vertical: 8,
-                                                      ),
-                                                      decoration: BoxDecoration(
-                                                        color: isUser
-                                                            ? Colors.blue[100]
-                                                            : Colors.green[100],
-                                                        borderRadius: BorderRadius.circular(12),
-                                                      ),
-                                                      child: Column(
-                                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                                        mainAxisSize: MainAxisSize.min,
-                                                        children: [
-                                                          Text(
-                                                            isUser ? 'You' : 'AI',
-                                                            style: TextStyle(
-                                                              fontSize: 10,
-                                                              fontWeight: FontWeight.bold,
-                                                              color: isUser
-                                                                  ? Colors.blue[800]
-                                                                  : Colors.green[800],
-                                                            ),
-                                                          ),
-                                                          SizedBox(height: 4),
-                                                          Text(
-                                                            message.content,
-                                                            style: TextStyle(
-                                                              fontSize: 14,
-                                                              color: Colors.black87,
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
+                                                  key: ValueKey(messageKey),
+                                                  padding: EdgeInsets.only(
+                                                    bottom: 12,
                                                   ),
-                                                  if (isUser) Spacer(),
-                                                ],
-                                              ),
-                                            );
+                                                  child: Row(
+                                                    mainAxisAlignment: isUser
+                                                        ? MainAxisAlignment
+                                                              .start
+                                                        : MainAxisAlignment.end,
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      if (!isUser) Spacer(),
+                                                      Flexible(
+                                                        flex: 2,
+                                                        child: Container(
+                                                          padding:
+                                                              EdgeInsets.symmetric(
+                                                                horizontal: 12,
+                                                                vertical: 8,
+                                                              ),
+                                                          decoration: BoxDecoration(
+                                                            color: isUser
+                                                                ? Colors
+                                                                      .blue[100]
+                                                                : Colors
+                                                                      .green[100],
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  12,
+                                                                ),
+                                                          ),
+                                                          child: Column(
+                                                            crossAxisAlignment:
+                                                                CrossAxisAlignment
+                                                                    .start,
+                                                            mainAxisSize:
+                                                                MainAxisSize
+                                                                    .min,
+                                                            children: [
+                                                              Text(
+                                                                isUser
+                                                                    ? 'You'
+                                                                    : 'AI',
+                                                                style: TextStyle(
+                                                                  fontSize: 10,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                  color: isUser
+                                                                      ? Colors
+                                                                            .blue[800]
+                                                                      : Colors
+                                                                            .green[800],
+                                                                ),
+                                                              ),
+                                                              SizedBox(
+                                                                height: 4,
+                                                              ),
+                                                              Text(
+                                                                message.content,
+                                                                style: TextStyle(
+                                                                  fontSize: 14,
+                                                                  color: Colors
+                                                                      .black87,
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      if (isUser) Spacer(),
+                                                    ],
+                                                  ),
+                                                );
                                               },
                                             );
                                           },
@@ -469,62 +510,62 @@ class _AudioPageState extends State<AudioPage>
                         },
                         child: audioProvider.getIsRecording
                             ? AnimatedBuilder(
-                          animation: _pulseAnimation,
-                          builder: (context, child) {
-                            return Container(
-                              width: 80 * _pulseAnimation.value,
-                              height: 80 * _pulseAnimation.value,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.red.withOpacity(0.3),
-                              ),
-                              child: Center(
-                                child: Container(
-                                  width: 60,
-                                  height: 60,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: Colors.red,
-                                  ),
-                                  child: Icon(
-                                    Icons.mic,
-                                    color: Colors.white,
-                                    size: 30,
+                                animation: _pulseAnimation,
+                                builder: (context, child) {
+                                  return Container(
+                                    width: 80 * _pulseAnimation.value,
+                                    height: 80 * _pulseAnimation.value,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.red.withOpacity(0.3),
+                                    ),
+                                    child: Center(
+                                      child: Container(
+                                        width: 60,
+                                        height: 60,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: Colors.red,
+                                        ),
+                                        child: Icon(
+                                          Icons.mic,
+                                          color: Colors.white,
+                                          size: 30,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              )
+                            : Container(
+                                width: 80,
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: audioProvider.getIsConnected
+                                      ? Colors.green.withOpacity(0.3)
+                                      : Colors.grey.withOpacity(0.3),
+                                ),
+                                child: Center(
+                                  child: Container(
+                                    width: 60,
+                                    height: 60,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: audioProvider.getIsConnected
+                                          ? Colors.green
+                                          : Colors.grey,
+                                    ),
+                                    child: Icon(
+                                      Icons.mic,
+                                      color: Colors.white,
+                                      size: 30,
+                                    ),
                                   ),
                                 ),
                               ),
-                            );
-                          },
-                        )
-                            : Container(
-                          width: 80,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: audioProvider.getIsConnected
-                                ? Colors.green.withOpacity(0.3)
-                                : Colors.grey.withOpacity(0.3),
-                          ),
-                          child: Center(
-                            child: Container(
-                              width: 60,
-                              height: 60,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: audioProvider.getIsConnected
-                                    ? Colors.green
-                                    : Colors.grey,
-                              ),
-                              child: Icon(
-                                Icons.mic,
-                                color: Colors.white,
-                                size: 30,
-                              ),
-                            ),
-                          ),
-                        ),
                       ),
-                      SizedBox(width: 40,),
+                      SizedBox(width: 40),
                       GestureDetector(
                         onTap: () async {
                           await audioProvider.interruptStreamingAudio();
@@ -549,19 +590,17 @@ class _AudioPageState extends State<AudioPage>
                                     : Colors.grey,
                               ),
                               child: Icon(
-                                Icons.pause_presentation,
+                                Icons.stop,
                                 color: Colors.white,
                                 size: 30,
                               ),
                             ),
                           ),
-                        )
+                        ),
                       ),
-
                     ],
                   ),
                 ),
-
               ],
             ),
           ),
