@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_3d_controller/flutter_3d_controller.dart';
 import 'package:gini_test_app/models/ai_chat_messages.dart';
 import 'package:gini_test_app/models/socket_message_models.dart';
 import 'package:sound_stream/sound_stream.dart';
@@ -11,6 +12,10 @@ import 'websocket_manager.dart';
 class AudioProvider extends ChangeNotifier {
   final String _wsUrl = 'wss://9e1459dc03e5.ngrok-free.app/ws';
   late final WebSocketManager _webSocketManager;
+
+  Flutter3DController _humanModelController = Flutter3DController();
+
+  Flutter3DController get getHumanModelController => _humanModelController;
 
   final List<AiChatMessages> _messages = [];
 
@@ -25,6 +30,7 @@ class AudioProvider extends ChangeNotifier {
   // Event stream for UI events
   final StreamController<UIEvent> _uiEventController =
       StreamController<UIEvent>.broadcast();
+
   Stream<UIEvent> get uiEvents => _uiEventController.stream;
 
   StreamSubscription<UIEvent>? _uiEventSubscription;
@@ -160,6 +166,7 @@ class AudioProvider extends ChangeNotifier {
   }
 
   List<AiChatMessages> get getMessages => _messages;
+
   void addMessage(AiChatMessages message) {
     _messages.add(message);
     notifyListeners();
@@ -176,6 +183,10 @@ class AudioProvider extends ChangeNotifier {
         if (type == null) {
           return;
         } else if (type == 'audio_pcm_ready') {
+          _humanModelController.playAnimation(
+            animationName: 'Rig|cycle_talking',
+            loopCount: 1,
+          );
           _handelAudioPcmReady(jsonData);
         } else if (type == "interrupt_acknowledged") {
           _handelInteruptAcknowledged();

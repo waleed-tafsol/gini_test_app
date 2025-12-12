@@ -36,20 +36,20 @@ class _AudioPageState extends State<AudioPage> {
     // _recordingAnimationController.dispose();
     super.dispose();
   }
-
-  void _handleUIEvent(UIEvent event) {
-    if (!mounted) return;
-
-    if (event is PermissionPermanentlyDeniedEvent) {
-      _showPermissionPermanentlyDeniedDialog(event);
-    } else if (event is PermissionDeniedEvent) {
-      _showPermissionDeniedDialog(event);
-    } else if (event is ErrorEvent) {
-      _showErrorDialog(event);
-    } else if (event is ConfirmationDialogEvent) {
-      _showConfirmationDialog(event);
-    }
-  }
+  //
+  // void _handleUIEvent(UIEvent event) {
+  //   if (!mounted) return;
+  //
+  //   if (event is PermissionPermanentlyDeniedEvent) {
+  //     _showPermissionPermanentlyDeniedDialog(event);
+  //   } else if (event is PermissionDeniedEvent) {
+  //     _showPermissionDeniedDialog(event);
+  //   } else if (event is ErrorEvent) {
+  //     _showErrorDialog(event);
+  //   } else if (event is ConfirmationDialogEvent) {
+  //     _showConfirmationDialog(event);
+  //   }
+  // }
 
   Future<void> _showPermissionPermanentlyDeniedDialog(
     PermissionPermanentlyDeniedEvent event,
