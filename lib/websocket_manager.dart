@@ -25,6 +25,13 @@ class WebSocketManager {
 
       _socketSubscription = _channel!.stream.listen(
         (data) {
+          // Log all received websocket data
+          if (data is String) {
+            debugPrint('📥 [WebSocket] Received: ${data.length > 200 ? data.substring(0, 200) + "..." : data}');
+          } else {
+            debugPrint('📥 [WebSocket] Received binary data: ${data.runtimeType}, size: ${data is List ? data.length : "unknown"}');
+          }
+          
           if (onDataReceived != null) {
             onDataReceived!(data);
           }
@@ -64,13 +71,22 @@ class WebSocketManager {
   void send(dynamic data) {
     if (_channel != null && _channel!.closeCode == null && _isConnected) {
       try {
+        // Log all sent websocket data
+        if (data is String) {
+          debugPrint('📤 [WebSocket] Sending: ${data.length > 200 ? data.substring(0, 200) + "..." : data}');
+        } else {
+          debugPrint('📤 [WebSocket] Sending binary data: ${data.runtimeType}');
+        }
+        
         _channel!.sink.add(data);
       } catch (e) {
-        print('Error sending data: $e');
+        debugPrint('❌ [WebSocket] Error sending data: $e');
         if (onError != null) {
           onError!(e);
         }
       }
+    } else {
+      debugPrint('⚠️ [WebSocket] Cannot send: channel=${_channel != null}, connected=$_isConnected');
     }
   }
 

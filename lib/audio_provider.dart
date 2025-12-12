@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_3d_controller/flutter_3d_controller.dart';
 import 'package:gini_test_app/models/ai_chat_messages.dart';
 import 'package:gini_test_app/models/socket_message_models.dart';
 import 'package:sound_stream/sound_stream.dart';
@@ -13,16 +13,17 @@ class AudioProvider extends ChangeNotifier {
   final String _wsUrl = 'wss://9e1459dc03e5.ngrok-free.app/ws';
   late final WebSocketManager _webSocketManager;
 
-   String _screenType = 'message';
+  String _screenType = 'message';
 
   void setScreenType(String type) {
     _screenType = type;
     notifyListeners();
   }
 
-  final Flutter3DController _humanModelController = Flutter3DController();
+  // Animation state tracking
+  bool _isAnimationPlaying = false;
 
-  Flutter3DController get getHumanModelController => _humanModelController;
+  bool get getIsAnimationPlaying => _isAnimationPlaying;
 
   final List<AiChatMessages> _messages = [];
 
@@ -117,20 +118,6 @@ class AudioProvider extends ChangeNotifier {
   final String _sessionId = 'ue5_session_2D529EFA';
   static const int _sampleRate = 16000;
 
-  bool _isPlaying = false;
-
-  bool get isPlaying => _isPlaying;
-
-  void play() {
-    _isPlaying = true;
-    notifyListeners();
-  }
-
-  void pause() {
-    _isPlaying = false;
-    notifyListeners();
-  }
-
   Future<void> initializeApp() async {
     try {
       setStatusMessage = 'Initializing...';
@@ -185,68 +172,122 @@ class AudioProvider extends ChangeNotifier {
 
     if (data is String) {
       try {
+        // Parse JSON - defer to microtask for non-audio messages to reduce main thread blocking
         final jsonData = jsonDecode(data) as Map<String, dynamic>;
         final type = jsonData['type'] as String?;
-        if (type == null) {
-          return;
-        }
-        else {
-          if (_screenType == 'message') {
-           if (type == "interrupt_acknowledged") {
-            _handelInteruptAcknowledged();
-          } else if (type == "final_transcript") {
-            _handelFinalTranscript(jsonData);
-          } else if (type == "tts_complete") {
-            _handelTTSComplete();
-          } else if (type == "streamed_response") {
-            _handelStreamedResponse(jsonData);
-          }
-          }
-          else if (type == 'audio_pcm_ready') {
-            _handelAudioPcmReady(jsonData);
-            if(_screenType == 'human_model'){
-                _humanModelController.playAnimation(
-                  animationName: 'Rig|cycle_talking',
-                  loopCount: 1,
-                );
 
+        // Reduced logging - only log non-audio messages to avoid spam
+        if (type != 'audio_pcm_ready') {
+          debugPrint('📨 [WebSocket] Type: ${type ?? "unknown"}');
+        }
+
+        if (type == null) {
+          debugPrint('⚠️ [WebSocket] Warning: Message type is null');
+          return;
+        } else {
+          // Handle audio_pcm_ready - starts animation with loop count 0
+
+          // Handle final_transcript - stops animation
+
+          // Handle other message types
+          if (_screenType == 'message') {
+            if (type == 'audio_pcm_ready') {
+              final chunkIdx = jsonData['chunk_idx'];
+              debugPrint(
+                '🔊 [WebSocket] Handling: audio_pcm_ready - chunk_idx: $chunkIdx',
+              );
+              _handelAudioPcmReady(jsonData);
+            }
+            if (type == "interrupt_acknowledged") {
+              debugPrint('🛑 [WebSocket] Handling: interrupt_acknowledged');
+              _handelInteruptAcknowledged();
+            } else if (type == "tts_complete") {
+              debugPrint('✅ [WebSocket] Handling: tts_complete');
+              _handelTTSComplete(jsonData);
+            } else if (type == "streamed_response") {
+              debugPrint(
+                '📝 [WebSocket] Handling: streamed_response - ${jsonData['response']}',
+              );
+              _handelStreamedResponse(jsonData);
+            } else if (type == "final_transcript") {
+              debugPrint(
+                '💬 [WebSocket] Handling: final_transcript - ${jsonData['text']}',
+              );
+              _handelFinalTranscript(jsonData);
+            } else {
+              debugPrint(
+                '❓ [WebSocket] Unhandled message type in message screen: $type',
+              );
+            }
+          } else {
+            if (type == 'audio_pcm_ready') {
+              // Process audio without blocking - no debug print for every chunk
+              _handelAudioPcmReady(jsonData);
+              // Throttle animation state updates - only update once when starting
+              if (_screenType == 'human_model' && !_isAnimationPlaying) {
+                _isAnimationPlaying = true;
+                // Defer notifyListeners to avoid blocking audio processing
+                Future.microtask(() => notifyListeners());
+              }
+            } else if (type == "tts_complete") {
+              debugPrint('✅ [WebSocket] Handling: tts_complete');
+              if (_screenType == 'human_model' && _isAnimationPlaying) {
+                _isAnimationPlaying = false;
+                notifyListeners();
+              }
             }
           }
-        };
-
-
-
-
+        }
       } catch (e) {
-        print('Error parsing WebSocket message: $e');
-        print('Raw data: $data');
+        debugPrint('❌ [WebSocket Error] Error parsing WebSocket message: $e');
+        debugPrint('❌ [WebSocket Error] Raw data: $data');
       }
+    } else {
+      debugPrint(
+        '⚠️ [WebSocket] Received non-string data: ${data.runtimeType}',
+      );
     }
   }
+
+  bool _playerStarted = false;
 
   void _handelAudioPcmReady(Map<String, dynamic> jsonData) {
     final pcmDataBase64 = jsonData['pcm_data'] as String?;
 
     if (pcmDataBase64 != null && pcmDataBase64.isNotEmpty) {
-      final pcmData = base64Decode(pcmDataBase64);
-      _player.start();
-      _player.writeChunk(pcmData);
+      // Use compute for base64 decoding to move it off main thread
+      // This prevents blocking the UI during audio processing
+      compute(_decodeBase64Audio, pcmDataBase64).then((pcmData) {
+        if (pcmData != null) {
+          // Start player only once
+          if (!_playerStarted) {
+            _player.start();
+            _playerStarted = true;
+          }
+          _player.writeChunk(pcmData);
+        }
+      }).catchError((e) {
+        debugPrint('Error processing audio chunk: $e');
+      });
+    }
+  }
 
-      // Optionally log chunk info
-      final chunkIdx = jsonData['chunk_idx'];
-      final text = jsonData['text'] as String?;
-      if (text != null && text.isNotEmpty) {
-        print('Received audio chunk $chunkIdx with text: $text');
-      } else {
-        print('Received audio chunk $chunkIdx');
-      }
+  // Static function for isolate processing
+  static Uint8List? _decodeBase64Audio(String base64Data) {
+    try {
+      return base64Decode(base64Data);
+    } catch (e) {
+      return null;
     }
   }
 
   void _handelStreamedResponse(Map<String, dynamic> jsonData) {
     final response = jsonData['response'] as String?;
     if (response != null && response.isNotEmpty) {
-      _appendStreamedResponse(response);
+      // Batch UI updates to reduce main thread work
+      Future.microtask(() {
+        _appendStreamedResponse(response);
+      });
     }
   }
 
@@ -254,13 +295,21 @@ class AudioProvider extends ChangeNotifier {
     addMessage(AiChatMessages(role: 'user', content: jsonData['text']));
   }
 
-  void _handelTTSComplete() {
-    addMessage(AiChatMessages(role: 'ai', content: "Intrupted"));
+  void _handelTTSComplete(Map<String, dynamic> jsonData) {
+    addMessage(AiChatMessages(role: 'ai', content: jsonData['full_response']));
   }
 
   void _handelInteruptAcknowledged() {
     _player.stop();
+    _stopTalkingAnimation();
     setStatusMessage = 'Audio stream interrupted';
+  }
+
+  void _stopTalkingAnimation() {
+    if (_isAnimationPlaying) {
+      _isAnimationPlaying = false;
+      notifyListeners();
+    }
   }
 
   Future<void> startStreamingAudio() async {
@@ -292,11 +341,12 @@ class AudioProvider extends ChangeNotifier {
           _webSocketManager.send(jsonString);
         },
         onError: (error) {
-          print('Audio stream error: $error');
+          debugPrint('Audio stream error: $error');
           stopStreamingAudio();
         },
       );
       await _player.start();
+      _playerStarted = true;
       setIsRecording = true;
       setStatusMessage = 'Recording and streaming...';
     } catch (e) {
@@ -316,10 +366,12 @@ class AudioProvider extends ChangeNotifier {
       await _audioStreamSubscription?.cancel();
       _audioStreamSubscription = null;
       await _player.stop();
+      _playerStarted = false;
+      _stopTalkingAnimation();
       setIsRecording = false;
       setStatusMessage = 'Recording stopped';
     } catch (e) {
-      print('Error stopping audio: $e');
+      debugPrint('Error stopping audio: $e');
       setStatusMessage = 'Error stopping: $e';
     }
   }
@@ -327,12 +379,14 @@ class AudioProvider extends ChangeNotifier {
   Future<void> interruptStreamingAudio() async {
     try {
       _player.stop();
+      _playerStarted = false;
+      _stopTalkingAnimation();
       final interuptEvent = InteruptEventModel(sessionId: _sessionId);
       final jsonString = jsonEncode(interuptEvent.toJson());
       _webSocketManager.send(jsonString);
       setStatusMessage = 'Recording interrupted';
     } catch (e) {
-      print('Error stopping audio: $e');
+      debugPrint('Error stopping audio: $e');
       setStatusMessage = 'Error stopping: $e';
     }
   }

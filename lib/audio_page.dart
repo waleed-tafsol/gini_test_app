@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import 'audio_provider.dart';
 import 'bottom_button.dart';
+import 'models/ai_chat_messages.dart';
 import 'ui_event.dart';
 
 class AudioPage extends StatefulWidget {
@@ -148,178 +149,96 @@ class _AudioPageState extends State<AudioPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AudioProvider>(
-      builder: (_, audioProvider, __) {
-        // Update animation state based on recording status
-
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('Two-Way Audio Demo (sound_stream)'),
-          ),
-          body: Padding(
-            padding: const EdgeInsets.only(
-              top: 20.0,
-              left: 20.0,
-              right: 20.0,
-              bottom: 30.0,
-            ),
-            child: Stack(
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Two-Way Audio Demo (sound_stream)'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.only(
+          top: 20.0,
+          left: 20.0,
+          right: 20.0,
+          bottom: 30.0,
+        ),
+        child: Stack(
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Status display
-                    // Container(
-                    //   padding: const EdgeInsets.all(12),
-                    //   decoration: BoxDecoration(
-                    //     color: audioProvider.getIsConnected
-                    //         ? Colors.green[50]
-                    //         : Colors.red[50],
-                    //     borderRadius: BorderRadius.circular(8),
-                    //     border: Border.all(
-                    //       color: audioProvider.getIsConnected
-                    //           ? Colors.green
-                    //           : Colors.red,
-                    //     ),
-                    //   ),
-                    //   child: Column(
-                    //     crossAxisAlignment: CrossAxisAlignment.start,
-                    //     children: [
-                    //       Text(
-                    //         'Status: ${audioProvider.getStatusMessage}',
-                    //         style: const TextStyle(fontWeight: FontWeight.bold),
-                    //       ),
-                    //       SizedBox(height: 4),
-                    //       Row(
-                    //         children: [
-                    //           Container(
-                    //             width: 10,
-                    //             height: 10,
-                    //             decoration: BoxDecoration(
-                    //               shape: BoxShape.circle,
-                    //               color: audioProvider.getIsConnected
-                    //                   ? Colors.green
-                    //                   : Colors.red,
-                    //             ),
-                    //           ),
-                    //           SizedBox(width: 8),
-                    //           Text(
-                    //             audioProvider.getIsConnected
-                    //                 ? 'Connected'
-                    //                 : 'Disconnected',
-                    //             style: TextStyle(
-                    //               color: audioProvider.getIsConnected
-                    //                   ? Colors.green
-                    //                   : Colors.red,
-                    //             ),
-                    //           ),
-                    //         ],
-                    //       ),
-                    //     ],
-                    //   ),
-                    // ),
-                    //
-                    // SizedBox(height: 20),
-                    //
-                    // // Control buttons
-                    // Row(
-                    //   children: [
-                    //     Expanded(
-                    //       child: ElevatedButton.icon(
-                    //         onPressed: audioProvider.getIsConnected
-                    //             ? null
-                    //             : () => audioProvider.reconnect(),
-                    //         icon: Icon(Icons.wifi, size: 20),
-                    //         label: Text(
-                    //           audioProvider.getIsConnected
-                    //               ? 'Connected'
-                    //               : 'Reconnect',
-                    //         ),
-                    //         style: ElevatedButton.styleFrom(
-                    //           backgroundColor: audioProvider.getIsConnected
-                    //               ? Colors.green
-                    //               : Colors.blue,
-                    //           foregroundColor: Colors.white,
-                    //         ),
-                    //       ),
-                    //     ),
-                    //     SizedBox(width: 10),
-                    //     Expanded(
-                    //       child: ElevatedButton.icon(
-                    //         onPressed: audioProvider.getIsConnected
-                    //             ? audioProvider.disconnectWebSocket
-                    //             : null,
-                    //         icon: Icon(Icons.wifi_off, size: 20),
-                    //         label: Text('Disconnect'),
-                    //         style: ElevatedButton.styleFrom(
-                    //           backgroundColor: Colors.red,
-                    //           foregroundColor: Colors.white,
-                    //         ),
-                    //       ),
-                    //     ),
-                    //   ],
-                    // ),
-                    //
-                    // SizedBox(height: 20),
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Player Status',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            // Recording status
-                            Text(
-                              audioProvider.getIsRecording
-                                  ? '🟢 Live - Streaming to WebSocket'
-                                  : '⏹️ Stopped',
-                              style: TextStyle(
-                                color: audioProvider.getIsRecording
-                                    ? Colors.green
-                                    : Colors.grey,
-                              ),
-                            ),
-                            // Streamed response
-                            if (audioProvider
-                                .getStreamedResponse
-                                .isNotEmpty) ...[
-                              SizedBox(height: 12),
-                              Divider(),
-                              SizedBox(height: 8),
+                // Player Status Card - Use Selector to only rebuild when status changes
+                RepaintBoundary(
+                  child: Selector<AudioProvider, Map<String, dynamic>>(
+                    selector: (_, provider) => {
+                      'isRecording': provider.getIsRecording,
+                      'streamedResponse': provider.getStreamedResponse,
+                    },
+                    shouldRebuild: (previous, next) =>
+                        previous['isRecording'] != next['isRecording'] ||
+                        previous['streamedResponse'] != next['streamedResponse'],
+                    builder: (context, data, child) {
+                      final isRecording = data['isRecording'] as bool;
+                      final streamedResponse = data['streamedResponse'] as String;
+                      
+                      return Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                               Text(
-                                'Streaming Response:',
+                                'Player Status',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                  color: Colors.grey[700],
+                                  fontSize: 16,
                                 ),
                               ),
-                              SizedBox(height: 4),
+                              SizedBox(height: 8),
+                              // Recording status
                               Text(
-                                audioProvider.getStreamedResponse,
+                                isRecording
+                                    ? '🟢 Live - Streaming to WebSocket'
+                                    : '⏹️ Stopped',
                                 style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.black87,
+                                  color: isRecording ? Colors.green : Colors.grey,
                                 ),
                               ),
+                              // Streamed response
+                              if (streamedResponse.isNotEmpty) ...[
+                                SizedBox(height: 12),
+                                Divider(),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Streaming Response:',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                    color: Colors.grey[700],
+                                  ),
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  streamedResponse,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                              ],
                             ],
-                          ],
+                          ),
                         ),
-                      ),
-                    ),
-                    SizedBox(height: 20),
-                    // Messages list - using Selector to only rebuild when messages change
-                    Expanded(
-                      child: Selector<AudioProvider, List<dynamic>>(
-                        selector: (_, provider) => provider.getMessages,
-                        builder: (context, messages, child) {
+                      );
+                    },
+                  ),
+                ),
+                SizedBox(height: 20),
+                // Messages list - using Selector to only rebuild when messages change
+                Expanded(
+                  child: RepaintBoundary(
+                    child: Selector<AudioProvider, int>(
+                      selector: (_, provider) => provider.getMessages.length,
+                      builder: (context, messageCount, child) {
+                        final messages = context.read<AudioProvider>().getMessages;
                           return Card(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -457,17 +376,18 @@ class _AudioPageState extends State<AudioPage> {
                               ],
                             ),
                           );
-                        },
-                      ),
+                      },
                     ),
-                  ],
+                  ),
                 ),
-                BottomButton(),
               ],
             ),
-          ),
-        );
-      },
+            RepaintBoundary(
+              child: BottomButton(),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

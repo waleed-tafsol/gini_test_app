@@ -19,134 +19,73 @@ class _HumanModelViewState extends State<HumanModelView> {
   bool changeModel = false;
   String srcGlb = 'assets/business_man.glb';
   String srcObj = 'assets/flutter_dash.obj';
+  
+  // 3D model controller - now managed locally
+  final Flutter3DController _humanModelController = Flutter3DController();
+  bool _previousAnimationState = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final audioProvider = context.read<AudioProvider>();
-      audioProvider.getHumanModelController.onModelLoaded.addListener(() {
+      if (!mounted) return;
+      
+      // Listen to model loaded events
+      _humanModelController.onModelLoaded.addListener(() {
         debugPrint(
-          'model is loaded : ${audioProvider.getHumanModelController.onModelLoaded.value}',
+          'model is loaded : ${_humanModelController.onModelLoaded.value}',
         );
       });
     });
   }
 
+  void _handleAnimationStateChange(bool isAnimationPlaying) {
+    if (isAnimationPlaying != _previousAnimationState) {
+      if (isAnimationPlaying) {
+        _playTalkingAnimation();
+      } else {
+        _stopTalkingAnimation();
+      }
+      _previousAnimationState = isAnimationPlaying;
+    }
+  }
+
+  void _playTalkingAnimation() {
+    try {
+      _humanModelController.playAnimation(
+        animationName: 'Rig|cycle_talking',
+        loopCount: 0, // 0 means infinite loop
+      );
+    } catch (e) {
+      debugPrint('Error playing talking animation: $e');
+    }
+  }
+
+  void _stopTalkingAnimation() {
+    try {
+      _humanModelController.stopAnimation();
+    } catch (e) {
+      debugPrint('Error stopping animation: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Consumer<AudioProvider>(
-      builder: (_,audioProvider,child) {
+    // Listen to animation state changes from AudioProvider
+    return Selector<AudioProvider, bool>(
+      selector: (_, provider) => provider.getIsAnimationPlaying,
+      shouldRebuild: (previous, next) => previous != next, // Only rebuild when state actually changes
+      builder: (context, isAnimationPlaying, child) {
+        // React to animation state changes - use addPostFrameCallback to defer
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _handleAnimationStateChange(isAnimationPlaying);
+          }
+        });
+
         return Scaffold(
-          floatingActionButton: Column(
-            mainAxisAlignment: MainAxisAlignment.end,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                onPressed: () {
-                  audioProvider.getHumanModelController.playAnimation();
-                },
-                icon: const Icon(Icons.play_arrow),
-              ),
-              const SizedBox(height: 4),
-              IconButton(
-                onPressed: () {
-                  audioProvider.getHumanModelController.pauseAnimation();
-                  //controller.stopAnimation();
-                  audioProvider.getHumanModelController.pauseRotation();
-                },
-                icon: const Icon(Icons.pause),
-              ),
-              const SizedBox(height: 4),
-              IconButton(
-                onPressed: () {
-                  audioProvider.getHumanModelController.resetAnimation();
-                  audioProvider.getHumanModelController.stopRotation();
-                },
-                icon: const Icon(Icons.replay),
-              ),
-              const SizedBox(height: 4),
-              IconButton(
-                onPressed: () async {
-                  List<String> availableAnimations = await audioProvider.getHumanModelController
-                      .getAvailableAnimations();
-                  debugPrint(
-                    'Animations : $availableAnimations --- Length : ${availableAnimations.length}',
-                  );
-                  chosenAnimation = await showPickerDialog(
-                    'Animations',
-                    availableAnimations,
-                    chosenAnimation,
-                  );
-                  //Play animation with loop count
-                  audioProvider.getHumanModelController.playAnimation(
-                    animationName: chosenAnimation,
-                    loopCount: 1,
-                  );
-                },
-                icon: const Icon(Icons.format_list_bulleted_outlined),
-              ),
-              const SizedBox(height: 4),
-              IconButton(
-                onPressed: () async {
-                  List<String> availableTextures = await audioProvider.getHumanModelController
-                      .getAvailableTextures();
-                  debugPrint(
-                    'Textures : $availableTextures --- Length : ${availableTextures.length}',
-                  );
-                  chosenTexture = await showPickerDialog(
-                    'Textures',
-                    availableTextures,
-                    chosenTexture,
-                  );
-                  audioProvider.getHumanModelController.setTexture(textureName: chosenTexture ?? '');
-                },
-                icon: const Icon(Icons.list_alt_rounded),
-              ),
-              const SizedBox(height: 4),
-              IconButton(
-                onPressed: () async {
-                  audioProvider.getHumanModelController.startRotation(rotationSpeed: 30);
-                  //controller.pauseRotation();
-                  //controller.stopRotation();
-                },
-                icon: const Icon(Icons.threed_rotation),
-              ),
-              const SizedBox(height: 4),
-              IconButton(
-                onPressed: () {
-                  audioProvider.getHumanModelController.setCameraOrbit(20, 20, 5);
-                  //controller.setCameraTarget(0.3, 0.2, 0.4);
-                },
-                icon: const Icon(Icons.camera_alt_outlined),
-              ),
-              const SizedBox(height: 4),
-              IconButton(
-                onPressed: () {
-                  audioProvider.getHumanModelController.resetCameraOrbit();
-                  //controller.resetCameraTarget();
-                },
-                icon: const Icon(Icons.cameraswitch_outlined),
-              ),
-              const SizedBox(height: 4),
-              IconButton(
-                onPressed: () {
-                  setState(() {
-                    // changeModel = !changeModel;
-                    // chosenAnimation = null;
-                    // chosenTexture = null;
-                    // if (changeModel) {
-                    //   srcObj = 'assets/Football.obj';
-                    //   srcGlb = 'assets/sheen_chair.glb';
-                    // } else {
-                    //   srcObj = 'assets/flutter_dash.obj';
-                    //   srcGlb = 'assets/business_man.glb';
-                    // }
-                  });
-                },
-                icon: const Icon(Icons.restore_page_outlined, size: 30),
-              ),
-            ],
+          floatingActionButton: RepaintBoundary(
+            child: _buildControlButtons(_humanModelController),
           ),
           body: Stack(
             children: [
@@ -194,45 +133,149 @@ class _HumanModelViewState extends State<HumanModelView> {
                     // ),
                     Flexible(
                       flex: 1,
-                      child: Flutter3DViewer(
-                        //If you pass 'true' the flutter_3d_controller will add gesture interceptor layer
-                        //to prevent gesture recognizers from malfunctioning on iOS and some Android devices.
-                        // the default value is true.
-                        activeGestureInterceptor: true,
-                        //If you don't pass progressBarColor, the color of defaultLoadingProgressBar will be grey.
-                        //You can set your custom color or use [Colors.transparent] for hiding loadingProgressBar.
-                        progressBarColor: Colors.orange,
-                        //You can disable viewer touch response by setting 'enableTouch' to 'false'
-                        enableTouch: true,
-                        //This callBack will return the loading progress value between 0 and 1.0
-                        onProgress: (double progressValue) {
-                          debugPrint('model loading progress : $progressValue');
-                        },
-                        //This callBack will call after model loaded successfully and will return model address
-                        onLoad: (String modelAddress) {
-                          debugPrint('model loaded : $modelAddress');
-                          audioProvider.getHumanModelController.playAnimation();
-                        },
-                        //this callBack will call when model failed to load and will return failure error
-                        onError: (String error) {
-                          debugPrint('model failed to load : $error');
-                        },
-                        //You can have full control of 3d model animations, textures and camera
-                        controller: audioProvider.getHumanModelController,
-                        src: srcGlb,
-                        //src: 'assets/business_man.glb', //3D model with different animations
-                        //src: 'assets/sheen_chair.glb', //3D model with different textures
-                        //src: 'https://modelviewer.dev/shared-assets/models/Astronaut.glb', // 3D model from URL
+                      child: RepaintBoundary(
+                        child: Flutter3DViewer(
+                          //If you pass 'true' the flutter_3d_controller will add gesture interceptor layer
+                          //to prevent gesture recognizers from malfunctioning on iOS and some Android devices.
+                          // the default value is true.
+                          activeGestureInterceptor: true,
+                          //If you don't pass progressBarColor, the color of defaultLoadingProgressBar will be grey.
+                          //You can set your custom color or use [Colors.transparent] for hiding loadingProgressBar.
+                          progressBarColor: Colors.orange,
+                          //You can disable viewer touch response by setting 'enableTouch' to 'false'
+                          enableTouch: true,
+                          //This callBack will return the loading progress value between 0 and 1.0
+                          onProgress: (double progressValue) {
+                            debugPrint('model loading progress : $progressValue');
+                          },
+                          //This callBack will call after model loaded successfully and will return model address
+                          onLoad: (String modelAddress) {
+                            debugPrint('model loaded : $modelAddress');
+                            _humanModelController.playAnimation();
+                          },
+                          //this callBack will call when model failed to load and will return failure error
+                          onError: (String error) {
+                            debugPrint('model failed to load : $error');
+                          },
+                          //You can have full control of 3d model animations, textures and camera
+                          controller: _humanModelController,
+                          src: srcGlb,
+                          //src: 'assets/business_man.glb', //3D model with different animations
+                          //src: 'assets/sheen_chair.glb', //3D model with different textures
+                          //src: 'https://modelviewer.dev/shared-assets/models/Astronaut.glb', // 3D model from URL
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-              BottomButton(),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 30.0),
+                child: RepaintBoundary(
+                  child: BottomButton(),
+                ),
+              ),
             ],
           ),
         );
-      }
+      },
+    );
+  }
+
+  Widget _buildControlButtons(Flutter3DController controller) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          onPressed: () {
+            controller.playAnimation();
+          },
+          icon: const Icon(Icons.play_arrow),
+        ),
+        const SizedBox(height: 4),
+        IconButton(
+          onPressed: () {
+            controller.pauseAnimation();
+            controller.pauseRotation();
+          },
+          icon: const Icon(Icons.pause),
+        ),
+        const SizedBox(height: 4),
+        IconButton(
+          onPressed: () {
+            controller.resetAnimation();
+            controller.stopRotation();
+          },
+          icon: const Icon(Icons.replay),
+        ),
+        const SizedBox(height: 4),
+        IconButton(
+          onPressed: () async {
+            List<String> availableAnimations = await controller.getAvailableAnimations();
+            debugPrint(
+              'Animations : $availableAnimations --- Length : ${availableAnimations.length}',
+            );
+            chosenAnimation = await showPickerDialog(
+              'Animations',
+              availableAnimations,
+              chosenAnimation,
+            );
+            //Play animation with loop count
+            controller.playAnimation(
+              animationName: chosenAnimation,
+              loopCount: 1,
+            );
+          },
+          icon: const Icon(Icons.format_list_bulleted_outlined),
+        ),
+        const SizedBox(height: 4),
+        IconButton(
+          onPressed: () async {
+            List<String> availableTextures = await controller.getAvailableTextures();
+            debugPrint(
+              'Textures : $availableTextures --- Length : ${availableTextures.length}',
+            );
+            chosenTexture = await showPickerDialog(
+              'Textures',
+              availableTextures,
+              chosenTexture,
+            );
+            controller.setTexture(textureName: chosenTexture ?? '');
+          },
+          icon: const Icon(Icons.list_alt_rounded),
+        ),
+        const SizedBox(height: 4),
+        IconButton(
+          onPressed: () async {
+            controller.startRotation(rotationSpeed: 30);
+          },
+          icon: const Icon(Icons.threed_rotation),
+        ),
+        const SizedBox(height: 4),
+        IconButton(
+          onPressed: () {
+            controller.setCameraOrbit(20, 20, 5);
+          },
+          icon: const Icon(Icons.camera_alt_outlined),
+        ),
+        const SizedBox(height: 4),
+        IconButton(
+          onPressed: () {
+            controller.resetCameraOrbit();
+          },
+          icon: const Icon(Icons.cameraswitch_outlined),
+        ),
+        const SizedBox(height: 4),
+        IconButton(
+          onPressed: () {
+            setState(() {
+              // Reserved for future model switching
+            });
+          },
+          icon: const Icon(Icons.restore_page_outlined, size: 30),
+        ),
+      ],
     );
   }
 
