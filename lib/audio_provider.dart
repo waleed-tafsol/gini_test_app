@@ -13,6 +13,13 @@ class AudioProvider extends ChangeNotifier {
   final String _wsUrl = 'wss://9e1459dc03e5.ngrok-free.app/ws';
   late final WebSocketManager _webSocketManager;
 
+   String _screenType = 'message';
+
+  void setScreenType(String type) {
+    _screenType = type;
+    notifyListeners();
+  }
+
   Flutter3DController _humanModelController = Flutter3DController();
 
   Flutter3DController get getHumanModelController => _humanModelController;
@@ -182,21 +189,34 @@ class AudioProvider extends ChangeNotifier {
         final type = jsonData['type'] as String?;
         if (type == null) {
           return;
-        } else if (type == 'audio_pcm_ready') {
-          _humanModelController.playAnimation(
-            animationName: 'Rig|cycle_talking',
-            loopCount: 1,
-          );
-          _handelAudioPcmReady(jsonData);
-        } else if (type == "interrupt_acknowledged") {
-          _handelInteruptAcknowledged();
-        } else if (type == "final_transcript") {
-          _handelFinalTranscript(jsonData);
-        } else if (type == "tts_complete") {
-          _handelTTSComplete();
-        } else if (type == "streamed_response") {
-          _handelStreamedResponse(jsonData);
         }
+        else {
+          if (_screenType == 'message') {
+           if (type == "interrupt_acknowledged") {
+            _handelInteruptAcknowledged();
+          } else if (type == "final_transcript") {
+            _handelFinalTranscript(jsonData);
+          } else if (type == "tts_complete") {
+            _handelTTSComplete();
+          } else if (type == "streamed_response") {
+            _handelStreamedResponse(jsonData);
+          }
+          }
+          else if (type == 'audio_pcm_ready') {
+            _handelAudioPcmReady(jsonData);
+            if(_screenType == 'human_model'){
+                _humanModelController.playAnimation(
+                  animationName: 'Rig|cycle_talking',
+                  loopCount: 1,
+                );
+
+            }
+          }
+        };
+
+
+
+
       } catch (e) {
         print('Error parsing WebSocket message: $e');
         print('Raw data: $data');
@@ -211,6 +231,7 @@ class AudioProvider extends ChangeNotifier {
       final pcmData = base64Decode(pcmDataBase64);
       _player.start();
       _player.writeChunk(pcmData);
+
       // Optionally log chunk info
       final chunkIdx = jsonData['chunk_idx'];
       final text = jsonData['text'] as String?;

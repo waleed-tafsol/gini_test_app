@@ -138,7 +138,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: ElevatedButton.icon(
                     onPressed: isConnected
                         ? () {
-                            Navigator.push(
+                      audioProvider.setScreenType('message');
+
+                      Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (context) => const AudioPage(),
@@ -168,6 +170,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: ElevatedButton.icon(
                     onPressed: isConnected
                         ? () {
+                      audioProvider.setScreenType('human_model');
                             Navigator.push(
                               context,
                               MaterialPageRoute(
