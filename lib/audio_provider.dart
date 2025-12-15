@@ -10,7 +10,7 @@ import 'ui_event.dart';
 import 'websocket_manager.dart';
 
 class AudioProvider extends ChangeNotifier {
-  final String _wsUrl = 'wss://9e1459dc03e5.ngrok-free.app/ws';
+  final String _wsUrl = 'wss://1ee244c26383.ngrok-free.app/ws';
   late final WebSocketManager _webSocketManager;
 
   String _screenType = 'message';
@@ -250,26 +250,78 @@ class AudioProvider extends ChangeNotifier {
   }
 
   bool _playerStarted = false;
+  
+  // Audio processing queue to prevent UI blocking
+  final List<Uint8List> _audioChunkQueue = [];
+  bool _isProcessingAudioQueue = false;
+  static const int _maxQueueSize = 50; // Prevent memory issues
 
   void _handelAudioPcmReady(Map<String, dynamic> jsonData) {
     final pcmDataBase64 = jsonData['pcm_data'] as String?;
 
     if (pcmDataBase64 != null && pcmDataBase64.isNotEmpty) {
-      // Use compute for base64 decoding to move it off main thread
-      // This prevents blocking the UI during audio processing
+      // Decode in isolate to prevent blocking main thread
       compute(_decodeBase64Audio, pcmDataBase64).then((pcmData) {
         if (pcmData != null) {
-          // Start player only once
-          if (!_playerStarted) {
-            _player.start();
-            _playerStarted = true;
-          }
-          _player.writeChunk(pcmData);
+          // Add to queue instead of writing directly
+          _enqueueAudioChunk(pcmData);
         }
       }).catchError((e) {
         debugPrint('Error processing audio chunk: $e');
       });
     }
+  }
+
+  void _enqueueAudioChunk(Uint8List pcmData) {
+    // Prevent queue from growing too large
+    if (_audioChunkQueue.length >= _maxQueueSize) {
+      debugPrint('⚠️ Audio queue full, dropping chunk');
+      return;
+    }
+
+    _audioChunkQueue.add(pcmData);
+    
+    // Start processing queue if not already processing
+    if (!_isProcessingAudioQueue) {
+      _processAudioQueue();
+    }
+  }
+
+  void _processAudioQueue() {
+    if (_audioChunkQueue.isEmpty) {
+      _isProcessingAudioQueue = false;
+      return;
+    }
+
+    _isProcessingAudioQueue = true;
+
+    // Process chunks asynchronously using scheduleMicrotask
+    // This allows UI to remain responsive between chunks
+    scheduleMicrotask(() {
+      if (_audioChunkQueue.isEmpty) {
+        _isProcessingAudioQueue = false;
+        return;
+      }
+
+      try {
+        // Start player only once
+        if (!_playerStarted) {
+          _player.start();
+          _playerStarted = true;
+        }
+
+        // Process one chunk at a time
+        final chunk = _audioChunkQueue.removeAt(0);
+        _player.writeChunk(chunk);
+
+        // Continue processing queue asynchronously
+        // This prevents blocking the main thread
+        Future.microtask(() => _processAudioQueue());
+      } catch (e) {
+        debugPrint('Error writing audio chunk: $e');
+        _isProcessingAudioQueue = false;
+      }
+    });
   }
 
   // Static function for isolate processing
@@ -301,6 +353,10 @@ class AudioProvider extends ChangeNotifier {
 
   void _handelInteruptAcknowledged() {
     _player.stop();
+    _playerStarted = false;
+    // Clear audio queue when interrupted
+    _audioChunkQueue.clear();
+    _isProcessingAudioQueue = false;
     _stopTalkingAnimation();
     setStatusMessage = 'Audio stream interrupted';
   }
@@ -367,6 +423,9 @@ class AudioProvider extends ChangeNotifier {
       _audioStreamSubscription = null;
       await _player.stop();
       _playerStarted = false;
+      // Clear audio queue when stopping
+      _audioChunkQueue.clear();
+      _isProcessingAudioQueue = false;
       _stopTalkingAnimation();
       setIsRecording = false;
       setStatusMessage = 'Recording stopped';
@@ -380,6 +439,9 @@ class AudioProvider extends ChangeNotifier {
     try {
       _player.stop();
       _playerStarted = false;
+      // Clear audio queue when interrupting
+      _audioChunkQueue.clear();
+      _isProcessingAudioQueue = false;
       _stopTalkingAnimation();
       final interuptEvent = InteruptEventModel(sessionId: _sessionId);
       final jsonString = jsonEncode(interuptEvent.toJson());
