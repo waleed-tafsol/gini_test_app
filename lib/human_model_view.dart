@@ -75,9 +75,9 @@ class _HumanModelViewState extends State<HumanModelView> {
         });
 
         return Scaffold(
-          floatingActionButton: RepaintBoundary(
-            child: _buildControlButtons(),
-          ),
+          // floatingActionButton: RepaintBoundary(
+          //   child: _buildControlButtons(),
+          // ),
           body: Stack(
             children: [
               // 3D Model Viewer
@@ -116,35 +116,35 @@ class _HumanModelViewState extends State<HumanModelView> {
     );
   }
 
-  Widget _buildControlButtons() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.end,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Play animation button
-        IconButton(
-          onPressed: () {
-            setState(() {
-              _isAnimationPlaying = true;
-            });
-            _playTalkingAnimation();
-          },
-          icon: const Icon(Icons.play_arrow),
-          tooltip: 'Play Animation',
-        ),
-        const SizedBox(height: 4),
-        // Stop animation button
-        IconButton(
-          onPressed: () {
-            setState(() {
-              _isAnimationPlaying = false;
-            });
-            _stopTalkingAnimation();
-          },
-          icon: const Icon(Icons.pause),
-          tooltip: 'Stop Animation',
-        ),
-      ],
-    );
-  }
+  // Widget _buildControlButtons() {
+  //   return Column(
+  //     mainAxisAlignment: MainAxisAlignment.end,
+  //     mainAxisSize: MainAxisSize.min,
+  //     children: [
+  //       // Play animation button
+  //       IconButton(
+  //         onPressed: () {
+  //           setState(() {
+  //             _isAnimationPlaying = true;
+  //           });
+  //           _playTalkingAnimation();
+  //         },
+  //         icon: const Icon(Icons.play_arrow),
+  //         tooltip: 'Play Animation',
+  //       ),
+  //       const SizedBox(height: 4),
+  //       // Stop animation button
+  //       IconButton(
+  //         onPressed: () {
+  //           setState(() {
+  //             _isAnimationPlaying = false;
+  //           });
+  //           _stopTalkingAnimation();
+  //         },
+  //         icon: const Icon(Icons.pause),
+  //         tooltip: 'Stop Animation',
+  //       ),
+  //     ],
+  //   );
+  // }
 }
