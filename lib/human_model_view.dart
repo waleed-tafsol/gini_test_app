@@ -22,14 +22,16 @@ class _HumanModelViewState extends State<HumanModelView> {
   
   // 3D model controller - now managed locally
   final Flutter3DController _humanModelController = Flutter3DController();
-  bool _previousAnimationState = false;
+  //bool _previousAnimationState = false;
 
   @override
   void initState() {
     super.initState();
+    _playTalkingAnimation();
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      
+
       // Listen to model loaded events
       _humanModelController.onModelLoaded.addListener(() {
         debugPrint(
@@ -40,14 +42,14 @@ class _HumanModelViewState extends State<HumanModelView> {
   }
 
   void _handleAnimationStateChange(bool isAnimationPlaying) {
-    if (isAnimationPlaying != _previousAnimationState) {
+   // if (isAnimationPlaying != _previousAnimationState) {
       if (isAnimationPlaying) {
         _playTalkingAnimation();
       } else {
         _stopTalkingAnimation();
       }
-      _previousAnimationState = isAnimationPlaying;
-    }
+   //   _previousAnimationState = isAnimationPlaying;
+   // }
   }
 
   void _playTalkingAnimation() {

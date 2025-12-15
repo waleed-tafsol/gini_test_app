@@ -32,7 +32,9 @@ dependencies:
     sdk: flutter
   web_socket_channel: ^3.0.3
   permission_handler: ^12.0.1
-  sound_stream: ^0.4.2 # Use this package for streaming audio
+  flutter_soloud: ^3.4.6 # Low-level audio plugin for playback
+  flutter_recorder: ^1.1.2 # Audio recording package with better cross-platform support
+  path_provider: ^2.1.1 # For temporary file management
   provider: ^6.1.5+1
   flutter_3d_controller: ^2.3.0
 

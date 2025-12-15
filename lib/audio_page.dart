@@ -151,7 +151,7 @@ class _AudioPageState extends State<AudioPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Two-Way Audio Demo (sound_stream)'),
+        title: const Text('Two-Way Audio Demo (flutter_soloud)'),
       ),
       body: Padding(
         padding: const EdgeInsets.only(

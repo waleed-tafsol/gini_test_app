@@ -17,7 +17,7 @@ class MyApp extends StatelessWidget {
         ),
       ],
       child: MaterialApp(
-        title: 'WS Audio (sound_stream)',
+        title: 'WS Audio (flutter_soloud)',
         home: const HomeScreen(),
       ),
     );
