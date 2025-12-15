@@ -33,6 +33,8 @@ class AudioProvider extends ChangeNotifier {
   bool _soloudInitialized = false;
   dynamic _bufferStream; // Buffer stream for PCM16 playback (SoundSource type)
   SoundHandle? _streamHandle; // Handle for the playing stream
+  Timer? _audioCompletionTimer; // Timer to track when audio playback completes
+  int _totalAudioBytes = 0; // Track total audio bytes for duration calculation
   
   // flutter_recorder package for audio recording
   final Recorder _recorder = Recorder.instance;
@@ -374,7 +376,30 @@ class AudioProvider extends ChangeNotifier {
       // Add PCM16 data directly to the buffer stream (returns void, not awaitable)
       _soloud.addAudioDataStream(_bufferStream!, pcmData);
       
-      debugPrint('📢 Added PCM16 chunk to stream (${pcmData.length} bytes)');
+      // Track total audio bytes and calculate duration
+      _totalAudioBytes += pcmData.length;
+      
+      // Calculate duration: PCM16 = 2 bytes per sample, sample rate = 16000
+      // Duration in seconds = (bytes / 2) / sampleRate
+      final durationSeconds = (_totalAudioBytes / 2) / _sampleRate;
+      
+      // Cancel previous timer if exists
+      _audioCompletionTimer?.cancel();
+      
+      // Set timer to stop animation when audio playback completes
+      // Add small buffer (100ms) to ensure audio finishes playing
+      _audioCompletionTimer = Timer(
+        Duration(milliseconds: (durationSeconds * 1000).round() + 100),
+        () {
+          if (_isAnimationPlaying) {
+            _isAnimationPlaying = false;
+            debugPrint('🎬 Animation stopped - audio playback complete');
+            notifyListeners();
+          }
+        },
+      );
+      
+      debugPrint('📢 Added PCM16 chunk to stream (${pcmData.length} bytes, total: $_totalAudioBytes bytes, duration: ${durationSeconds.toStringAsFixed(2)}s)');
     } catch (e) {
       debugPrint('Error playing PCM chunk: $e');
     }
@@ -426,6 +451,11 @@ class AudioProvider extends ChangeNotifier {
       _soloud.stop(_streamHandle!);
       _streamHandle = null;
     }
+    
+    // Cancel audio completion timer
+    _audioCompletionTimer?.cancel();
+    _audioCompletionTimer = null;
+    _totalAudioBytes = 0;
     
     _stopTalkingAnimation();
     setStatusMessage = 'Audio stream interrupted';
@@ -562,6 +592,11 @@ class AudioProvider extends ChangeNotifier {
         _streamHandle = null;
       }
       
+      // Cancel audio completion timer
+      _audioCompletionTimer?.cancel();
+      _audioCompletionTimer = null;
+      _totalAudioBytes = 0;
+      
       _stopTalkingAnimation();
       setIsRecording = false;
       setStatusMessage = 'Recording stopped';
@@ -587,7 +622,11 @@ class AudioProvider extends ChangeNotifier {
         _streamHandle = null;
       }
       
-      // Clear audio queue when interrupting
+      // Cancel audio completion timer
+      _audioCompletionTimer?.cancel();
+      _audioCompletionTimer = null;
+      _totalAudioBytes = 0;
+      
       _stopTalkingAnimation();
       final interuptEvent = InteruptEventModel(sessionId: _sessionId);
       final jsonString = jsonEncode(interuptEvent.toJson());
