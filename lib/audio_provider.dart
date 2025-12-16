@@ -11,7 +11,7 @@ import 'ui_event.dart';
 import 'websocket_manager.dart';
 
 class AudioProvider extends ChangeNotifier {
-  final String _wsUrl = 'wss://1ee244c26383.ngrok-free.app/ws';
+  final String _wsUrl = 'wss://cf69646828d6.ngrok-free.app/ws';
   late final WebSocketManager _webSocketManager;
 
   String _screenType = 'message';
@@ -248,7 +248,7 @@ class AudioProvider extends ChangeNotifier {
               _handelSessionStarted(jsonData);
             } else if (type == "interrupt_acknowledged") {
               debugPrint('🛑 [WebSocket] Handling: interrupt_acknowledged');
-              _handelInteruptAcknowledged();
+              _handelInterruptAcknowledged();
             } else if (type == "tts_complete") {
               debugPrint('✅ [WebSocket] Handling: tts_complete');
               _handelTTSComplete(jsonData);
@@ -429,7 +429,12 @@ class AudioProvider extends ChangeNotifier {
   }
 
   void _handelTTSComplete(Map<String, dynamic> jsonData) {
-    addMessage(AiChatMessages(role: 'ai', content: jsonData['full_response']));
+    if(jsonData['full_response'] == ''){
+      addMessage(AiChatMessages(role: 'ai', content: 'Interrupted'));
+    }
+    else{
+      addMessage(AiChatMessages(role: 'ai', content: jsonData['full_response']));
+    }
   }
 
   void _handelSessionStarted(Map<String, dynamic> jsonData) {
@@ -439,7 +444,7 @@ class AudioProvider extends ChangeNotifier {
     setStatusMessage = 'Session started - Ready to stream';
   }
 
-  void _handelInteruptAcknowledged() {
+  void _handelInterruptAcknowledged() {
     // Stop recording
     _recorder.stopStreamingData();
     _isStreamingData = false;
