@@ -1,58 +1,45 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
+
 import 'package:flutter/foundation.dart';
-import 'package:gini_test_app/models/ai_chat_messages.dart';
-import 'package:gini_test_app/models/socket_message_models.dart';
-import 'package:flutter_soloud/flutter_soloud.dart';
 import 'package:flutter_recorder/flutter_recorder.dart';
-import 'permission_handler.dart';
-import 'ui_event.dart';
-import 'websocket_manager.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_soloud/flutter_soloud.dart';
 
-class AudioProvider extends ChangeNotifier {
-  final String _wsUrl = 'wss://ec0fd1bae7e2.ngrok-free.app/ws';
+import '../../models/ai_chat_messages.dart';
+import '../../models/permission_handler.dart';
+import '../../models/socket_message_models.dart';
+import '../../models/ui_event.dart';
+import '../../utils/base_notifier.dart';
+import '../../utils/enums.dart';
+import '../../websocket_manager.dart';
+
+final audioProvider = NotifierProvider.autoDispose(() => AudioNotifier());
+
+class AudioNotifier extends BaseNotifier<AudioState> {
+  final String _wsUrl = 'wss://genie-api-test.devcustomprojects.online/ws';
   late final WebSocketManager _webSocketManager;
-
-  String _screenType = 'message';
-
-  void setScreenType(String type) {
-    _screenType = type;
-    notifyListeners();
-  }
-
-  // Animation state tracking
-  bool _isAnimationPlaying = false;
-
-  bool get getIsAnimationPlaying => _isAnimationPlaying;
-
-  final List<AiChatMessages> _messages = [];
-
-  // flutter_soloud instance for audio playback
   final SoLoud _soloud = SoLoud.instance;
   bool _soloudInitialized = false;
   dynamic _bufferStream; // Buffer stream for PCM16 playback (SoundSource type)
   SoundHandle? _streamHandle; // Handle for the playing stream
   Timer? _audioCompletionTimer; // Timer to track when audio playback completes
   int _totalAudioBytes = 0; // Track total audio bytes for duration calculation
-  
-  // flutter_recorder package for audio recording
   final Recorder _recorder = Recorder.instance;
-  
   StreamSubscription<AudioDataContainer>? _audioInputSubscription;
-  bool _isStreamingData = false;
-
-  // Permission handler
   final PermissionHandler _permissionHandler = PermissionHandler();
-
-  // Event stream for UI events
   final StreamController<UIEvent> _uiEventController =
       StreamController<UIEvent>.broadcast();
-
-  Stream<UIEvent> get uiEvents => _uiEventController.stream;
-
   StreamSubscription<UIEvent>? _uiEventSubscription;
   Function(UIEvent)? _uiEventHandler;
+  final String _sessionId = 'ue5_session_2D529EFA';
+  static const int _sampleRate = 16000; // WebSocket expects 16kHz
+
+  void setScreenType(ScreenType type) {
+    state = state.copyWith(type: type);
+  }
+
+  Stream<UIEvent> get uiEvents => _uiEventController.stream;
 
   void _emitEvent(UIEvent event) {
     _uiEventController.add(event);
@@ -60,9 +47,7 @@ class AudioProvider extends ChangeNotifier {
 
   void setUIEventHandler(Function(UIEvent) handler) {
     _uiEventHandler = handler;
-    // Cancel existing subscription if any
     _uiEventSubscription?.cancel();
-    // Create new subscription
     _uiEventSubscription = uiEvents.listen((event) {
       if (_uiEventHandler != null) {
         _uiEventHandler!(event);
@@ -70,30 +55,25 @@ class AudioProvider extends ChangeNotifier {
     });
   }
 
-  AudioProvider() {
+  AudioNotifier() : super(AudioState()) {
     _webSocketManager = WebSocketManager(url: _wsUrl);
     _webSocketManager.onDataReceived = _handleWebSocketData;
     _webSocketManager.onStatusChanged = (message) => setStatusMessage = message;
     _webSocketManager.onError = (error) {
-      setIsConnected = false;
       stopStreamingAudio();
     };
     _webSocketManager.onDisconnected = () {
-      setIsConnected = false;
       stopStreamingAudio();
     };
   }
 
-  bool _isRecording = false;
-
-  bool get getIsRecording => _isRecording;
-
   set setIsRecording(bool value) {
-    debugPrint('🔄 setIsRecording called with value: $value (current: $_isRecording)');
-    if (_isRecording != value) {
-      _isRecording = value;
-      debugPrint('✅ _isRecording updated to: $_isRecording');
-      notifyListeners();
+    debugPrint(
+      '🔄 setIsRecording called with value: $value (current: ${state.isRecording})',
+    );
+    if (state.isRecording != value) {
+      state = state.copyWith(isRecording: value);
+      debugPrint('✅ _isRecording updated to: ${state.isRecording}');
       debugPrint('✅ notifyListeners() called');
     } else {
       debugPrint('⚠️ _isRecording already $value, skipping update');
@@ -102,39 +82,21 @@ class AudioProvider extends ChangeNotifier {
 
   bool get getIsConnected => _webSocketManager.isConnected;
 
-  set setIsConnected(bool value) {
-    // This setter is kept for compatibility but the actual state is managed by WebSocketManager
-    notifyListeners();
-  }
-
-  String _statusMessage = 'Ready';
-
-  String get getStatusMessage => _statusMessage;
-
   set setStatusMessage(String value) {
-    _statusMessage = value;
-    notifyListeners();
+    state = state.copyWith(statusMessage: value);
   }
-
-  String _streamedResponse = '';
-
-  String get getStreamedResponse => _streamedResponse;
 
   void _appendStreamedResponse(String text) {
-    _streamedResponse += text;
-    notifyListeners();
+    final String? data = state.streamedResponse;
+    state = state.copyWith(streamedResponse: data != null ? data + text : text);
   }
 
   void _clearStreamedResponse() {
-    _streamedResponse = '';
-    notifyListeners();
+    state = state.copyWith(streamedResponse: '');
   }
 
-  final String _sessionId = 'ue5_session_2D529EFA';
-  static const int _sampleRate = 16000; // WebSocket expects 16kHz
-
   Future<void> initializeApp() async {
-    try {
+    return await runSafely(() async {
       setStatusMessage = 'Initializing...';
       final permissionResult = await _permissionHandler.requestPermissions();
 
@@ -162,23 +124,19 @@ class AudioProvider extends ChangeNotifier {
 
       await _initializeAudio();
       await _webSocketManager.connect();
-      notifyListeners();
-    } catch (e) {
-      setStatusMessage = 'Initialization failed: $e';
-      _emitEvent(ErrorEvent(message: 'Initialization failed: $e'));
-    }
+    });
   }
 
   Future<void> _initializeAudio() async {
     // Initialize SoLoud for audio playback
-    try {
+    return await runSafely(() async {
       if (!_soloudInitialized) {
         await _soloud.init();
         _soloudInitialized = true;
         debugPrint('✅ SoLoud initialized successfully');
-        
+
         // Set up buffer stream for PCM16 playback (no WAV conversion needed!)
-        _bufferStream = await _soloud.setBufferStream(
+        _bufferStream = _soloud.setBufferStream(
           maxBufferSizeBytes: 1024 * 1024 * 10, // 10MB max buffer
           bufferingType: BufferingType.preserved,
           bufferingTimeNeeds: 0.1, // 100ms buffer for real-time playback
@@ -188,36 +146,25 @@ class AudioProvider extends ChangeNotifier {
         );
         debugPrint('✅ Buffer stream initialized for PCM16 playback');
       }
-    } catch (e) {
-      debugPrint('❌ Error initializing SoLoud: $e');
-    }
-    
-    // Initialize flutter_recorder
-    try {
       _recorder.init(
         format: PCMFormat.s16le, // 16-bit PCM format
         sampleRate: _sampleRate,
         channels: RecorderChannels.mono, // Mono
       );
       debugPrint('✅ Recorder initialized successfully');
-    } catch (e) {
-      debugPrint('❌ Error initializing Recorder: $e');
-    }
+    });
   }
-
-  List<AiChatMessages> get getMessages => _messages;
 
   void addMessage(AiChatMessages message) {
-    _messages.add(message);
-    notifyListeners();
+    state = state.copyWith(messages: [message, ...state.messages]);
   }
 
-  void _handleWebSocketData(dynamic data) {
-    if (data == null) return;
-    if (data.isEmpty) return;
+  Future<void> _handleWebSocketData(dynamic data) async {
+    return await runSafely(() async {
+      if (data == null) return;
+      if (data.isEmpty) return;
 
-    if (data is String) {
-      try {
+      if (data is String) {
         // Parse JSON - defer to microtask for non-audio messages to reduce main thread blocking
         final jsonData = jsonDecode(data) as Map<String, dynamic>;
         final type = jsonData['type'] as String?;
@@ -236,7 +183,7 @@ class AudioProvider extends ChangeNotifier {
           // Handle final_transcript - stops animation
 
           // Handle other message types
-          if (_screenType == 'message') {
+          if (state.type == ScreenType.message) {
             if (type == 'audio_pcm_ready') {
               final chunkIdx = jsonData['chunk_idx'];
               debugPrint(
@@ -272,30 +219,20 @@ class AudioProvider extends ChangeNotifier {
               // Process audio without blocking - no debug print for every chunk
               _handelAudioPcmReady(jsonData);
               // Throttle animation state updates - only update once when starting
-              if (!_isAnimationPlaying) {
-                _isAnimationPlaying = true;
-                // Defer notifyListeners to avoid blocking audio processing
-                Future.microtask(() => notifyListeners());
+              if (!state.isAnimationPlaying) {
+                state = state.copyWith(isAnimationPlaying: true);
               }
-            }
-            else if (type == "tts_complete") {
+            } else if (type == "tts_complete") {
               debugPrint('✅ [WebSocket] Handling: tts_complete');
-              if ( _isAnimationPlaying) {
-               // _isAnimationPlaying = false;
-                notifyListeners();
-              }
             }
           }
         }
-      } catch (e) {
-        debugPrint('❌ [WebSocket Error] Error parsing WebSocket message: $e');
-        debugPrint('❌ [WebSocket Error] Raw data: $data');
+      } else {
+        debugPrint(
+          '⚠️ [WebSocket] Received non-string data: ${data.runtimeType}',
+        );
       }
-    } else {
-      debugPrint(
-        '⚠️ [WebSocket] Received non-string data: ${data.runtimeType}',
-      );
-    }
+    });
   }
 
   // Audio processing for playback using flutter_soloud
@@ -308,14 +245,14 @@ class AudioProvider extends ChangeNotifier {
       // Stop current playback and clear old audio when new audio arrives
 
       // Decode in isolate to prevent blocking main thread
-      compute(_decodeBase64Audio, pcmDataBase64).then((pcmData) {
-        if (pcmData != null) {
-          // Play only the latest audio chunk (don't queue old chunks)
-          _playPcmChunk(pcmData);
-        }
-      }).catchError((e) {
-        debugPrint('Error processing audio chunk: $e');
-      });
+      compute(base64Decode, pcmDataBase64)
+          .then((pcmData) {
+            // Play only the latest audio chunk (don't queue old chunks)
+            _playPcmChunk(pcmData);
+          })
+          .catchError((e) {
+            debugPrint('Error processing audio chunk: $e');
+          });
     }
   }
 
@@ -330,21 +267,21 @@ class AudioProvider extends ChangeNotifier {
         debugPrint('Error stopping playback: $e');
       }
     }
-    
+
     // Reset the buffer stream to clear old audio data
     _resetBufferStream();
   }
 
   Future<void> _resetBufferStream() async {
-    try {
+    return await runSafely(() async {
       // Dispose old buffer stream
       if (_bufferStream != null) {
         await _soloud.disposeSource(_bufferStream!);
         _bufferStream = null;
       }
-      
+
       // Create a new buffer stream
-      _bufferStream = await _soloud.setBufferStream(
+      _bufferStream = _soloud.setBufferStream(
         maxBufferSizeBytes: 1024 * 1024 * 10, // 10MB max buffer
         bufferingType: BufferingType.preserved,
         bufferingTimeNeeds: 0.1, // 100ms buffer for real-time playback
@@ -353,65 +290,52 @@ class AudioProvider extends ChangeNotifier {
         format: BufferType.s16le, // Signed 16-bit PCM little endian
       );
       debugPrint('🔄 Reset buffer stream for new audio');
-    } catch (e) {
-      debugPrint('Error resetting buffer stream: $e');
-    }
+    });
   }
 
-
   Future<void> _playPcmChunk(Uint8List pcmData) async {
-    try {
-      // Play PCM16 data directly using buffer stream (no WAV conversion needed!)
+    return await runSafely(() async {
+      // Play PCM16 data directly using buffer stream (no WAVgi conversion needed!)
       if (_bufferStream == null) {
         debugPrint('⚠️ Buffer stream not initialized');
         return;
       }
-      
+
       // Start playing if not already playing
       if (_streamHandle == null) {
         _streamHandle = await _soloud.play(_bufferStream!);
         debugPrint('📢 Started PCM16 stream playback, handle: $_streamHandle');
       }
-      
+
       // Add PCM16 data directly to the buffer stream (returns void, not awaitable)
       _soloud.addAudioDataStream(_bufferStream!, pcmData);
-      
+
       // Track total audio bytes and calculate duration
       _totalAudioBytes += pcmData.length;
-      
+
       // Calculate duration: PCM16 = 2 bytes per sample, sample rate = 16000
       // Duration in seconds = (bytes / 2) / sampleRate
       final durationSeconds = (_totalAudioBytes / 2) / _sampleRate;
-      
+
       // Cancel previous timer if exists
       _audioCompletionTimer?.cancel();
-      
+
       // Set timer to stop animation when audio playback completes
       // Add small buffer (100ms) to ensure audio finishes playing
       _audioCompletionTimer = Timer(
         Duration(milliseconds: (durationSeconds * 1000).round() + 100),
         () {
-          if (_isAnimationPlaying) {
-            _isAnimationPlaying = false;
+          if (state.isAnimationPlaying) {
+            state = state.copyWith(isAnimationPlaying: false);
             debugPrint('🎬 Animation stopped - audio playback complete');
-            notifyListeners();
           }
         },
       );
-      
-      debugPrint('📢 Added PCM16 chunk to stream (${pcmData.length} bytes, total: $_totalAudioBytes bytes, duration: ${durationSeconds.toStringAsFixed(2)}s)');
-    } catch (e) {
-      debugPrint('Error playing PCM chunk: $e');
-    }
-  }
 
-  // Static function for isolate processing
-  static Uint8List? _decodeBase64Audio(String base64Data) {
-    try {
-      return base64Decode(base64Data);
-    } catch (e) {
-      return null;
-    }
+      debugPrint(
+        '📢 Added PCM16 chunk to stream (${pcmData.length} bytes, total: $_totalAudioBytes bytes, duration: ${durationSeconds.toStringAsFixed(2)}s)',
+      );
+    });
   }
 
   void _handelStreamedResponse(Map<String, dynamic> jsonData) {
@@ -429,11 +353,12 @@ class AudioProvider extends ChangeNotifier {
   }
 
   void _handelTTSComplete(Map<String, dynamic> jsonData) {
-    if(jsonData['full_response'] == ''){
+    if (jsonData['full_response'] == '') {
       addMessage(AiChatMessages(role: 'ai', content: 'Interrupted'));
-    }
-    else{
-      addMessage(AiChatMessages(role: 'ai', content: jsonData['full_response']));
+    } else {
+      addMessage(
+        AiChatMessages(role: 'ai', content: jsonData['full_response']),
+      );
     }
   }
 
@@ -447,51 +372,50 @@ class AudioProvider extends ChangeNotifier {
   void _handelInterruptAcknowledged() {
     // Stop recording
     _recorder.stopStreamingData();
-    _isStreamingData = false;
+    state = state.copyWith(isStreamingData: false);
     _audioInputSubscription?.cancel();
     _audioInputSubscription = null;
-    
+
     // Stop playback
     if (_streamHandle != null) {
       _soloud.stop(_streamHandle!);
       _streamHandle = null;
     }
-    
+
     // Cancel audio completion timer
     _audioCompletionTimer?.cancel();
     _audioCompletionTimer = null;
     _totalAudioBytes = 0;
-    
+
     _stopTalkingAnimation();
     setStatusMessage = 'Audio stream interrupted';
   }
 
   void _stopTalkingAnimation() {
-    if (_isAnimationPlaying) {
-      _isAnimationPlaying = false;
-      notifyListeners();
+    if (state.isAnimationPlaying) {
+      state = state.copyWith(isAnimationPlaying: false);
     }
   }
 
   Future<void> startStreamingAudio() async {
-    _stopCurrentPlayback();
-    debugPrint('🎤 startStreamingAudio called');
-    
-    if (!_webSocketManager.isConnected) {
-      debugPrint('❌ WebSocket not connected');
-      setStatusMessage = 'Not connected to WebSocket';
-      return;
-    }
+    return await runSafely(() async {
+      _stopCurrentPlayback();
+      debugPrint('🎤 startStreamingAudio called');
 
-    if (_isRecording) {
-      debugPrint('⚠️ Already recording, ignoring start request');
-      return;
-    }
+      if (!_webSocketManager.isConnected) {
+        debugPrint('❌ WebSocket not connected');
+        setStatusMessage = 'Not connected to WebSocket';
+        return;
+      }
 
-    try {
+      if (state.isRecording) {
+        debugPrint('⚠️ Already recording, ignoring start request');
+        return;
+      }
+
       setStatusMessage = 'Starting audio stream...';
       _clearStreamedResponse();
-      
+
       // Check permissions before starting
       final permissionResult = await _permissionHandler.requestPermissions();
       if (!permissionResult.isGranted) {
@@ -499,7 +423,7 @@ class AudioProvider extends ChangeNotifier {
         setStatusMessage = 'Microphone permission required';
         return;
       }
-      
+
       final startEvent = StartAudioMessageModel(
         sessionId: _sessionId,
         sampleRate: _sampleRate,
@@ -507,36 +431,38 @@ class AudioProvider extends ChangeNotifier {
       final jsonString = jsonEncode(startEvent.toJson());
       _webSocketManager.send(jsonString);
       debugPrint('📤 Sent start event to WebSocket');
-      
+
       // Start recording using flutter_recorder package
       try {
         debugPrint('🎵 Attempting to start audio recording...');
-        
+
         // Start the capture device
         _recorder.start();
         debugPrint('✅ Recorder capture device started');
-        
+
         // Start streaming audio data
         _recorder.startStreamingData();
-        _isStreamingData = true;
+        state = state.copyWith(isStreamingData: true);
         debugPrint('✅ Audio streaming started');
-        
+
         // Set recording state immediately after starting
         setIsRecording = true;
-        debugPrint('✅ Recording state set to true, _isRecording = $_isRecording');
-        
+        debugPrint(
+          '✅ Recording state set to true, _isRecording = ${state.isRecording}',
+        );
+
         // Listen to audio stream and send to WebSocket
         _audioInputSubscription = _recorder.uint8ListStream.listen(
           (audioDataContainer) {
-            if (!_isRecording) {
+            if (!state.isRecording) {
               debugPrint('⚠️ Received audio data but _isRecording is false');
               return;
             }
-            
+
             // Get raw PCM16 data from the container
             // The data is already in the format specified during init (s16le)
             final audioData = audioDataContainer.rawData;
-            
+
             // Send audio data to WebSocket
             final msgEvent = AudioMessageModel(
               sessionId: _sessionId,
@@ -552,7 +478,7 @@ class AudioProvider extends ChangeNotifier {
           },
           onDone: () {
             debugPrint('⚠️ Audio input stream closed');
-            if (_isRecording) {
+            if (state.isRecording) {
               stopStreamingAudio();
             }
           },
@@ -566,81 +492,69 @@ class AudioProvider extends ChangeNotifier {
         setIsRecording = false;
         return;
       }
-    } catch (e, stackTrace) {
-      debugPrint('❌ Unexpected error in startStreamingAudio: $e');
-      debugPrint('Stack trace: $stackTrace');
-      setStatusMessage = 'Failed to start: $e';
-      await stopStreamingAudio();
-    }
+    });
   }
 
-
   Future<void> stopStreamingAudio() async {
-    if (!_isRecording) return;
+    return await runSafely(() async {
+      if (!state.isRecording) return;
 
-    try {
       final endChatEvent = AudioEndMessageModel(sessionId: _sessionId);
       final jsonString = jsonEncode(endChatEvent.toJson());
       _webSocketManager.send(jsonString);
-      
+
       // Stop recording
-      if (_isStreamingData) {
+      if (state.isStreamingData) {
         _recorder.stopStreamingData();
-        _isStreamingData = false;
+        state = state.copyWith(isStreamingData: false);
       }
       await _audioInputSubscription?.cancel();
       _audioInputSubscription = null;
-      
+
       // Stop any ongoing playback
       if (_streamHandle != null) {
         await _soloud.stop(_streamHandle!);
         _streamHandle = null;
       }
-      
+
       // Cancel audio completion timer
       _audioCompletionTimer?.cancel();
       _audioCompletionTimer = null;
       _totalAudioBytes = 0;
-      
+
       _stopTalkingAnimation();
       setIsRecording = false;
       setStatusMessage = 'Recording stopped';
-    } catch (e) {
-      debugPrint('Error stopping audio: $e');
-      setStatusMessage = 'Error stopping: $e';
-    }
+    });
   }
 
   Future<void> interruptStreamingAudio() async {
-    try {
+    return await runSafely(() async {
       // Stop recording
-      if (_isStreamingData) {
+      if (state.isStreamingData) {
         _recorder.stopStreamingData();
-        _isStreamingData = false;
+        state = state.copyWith(isStreamingData: false);
       }
       await _audioInputSubscription?.cancel();
       _audioInputSubscription = null;
-      
+
       // Stop playback
       if (_streamHandle != null) {
         await _soloud.stop(_streamHandle!);
         _streamHandle = null;
       }
-      
+
       // Cancel audio completion timer
       _audioCompletionTimer?.cancel();
       _audioCompletionTimer = null;
       _totalAudioBytes = 0;
-      
+
       _stopTalkingAnimation();
       final interuptEvent = InteruptEventModel(sessionId: _sessionId);
       final jsonString = jsonEncode(interuptEvent.toJson());
       _webSocketManager.send(jsonString);
       setStatusMessage = 'Recording interrupted';
-    } catch (e) {
-      debugPrint('Error stopping audio: $e');
-      setStatusMessage = 'Error stopping: $e';
-    }
+    });
   }
 
   Future<void> reconnect() async {
@@ -671,13 +585,11 @@ class AudioProvider extends ChangeNotifier {
 
     await stopStreamingAudio();
     await _webSocketManager.reconnect();
-    notifyListeners();
   }
 
   Future<void> disconnectWebSocket() async {
     await _webSocketManager.disconnect();
     setIsRecording = false;
-    notifyListeners();
   }
 
   @override
@@ -689,10 +601,10 @@ class AudioProvider extends ChangeNotifier {
     _uiEventHandler = null;
     _audioInputSubscription?.cancel();
     _audioInputSubscription = null;
-    
+
     // Clean up SoLoud - dispose all active sources and temp files
     _cleanupSoloud();
-    
+
     _webSocketManager.dispose();
     _uiEventController.close();
   }
@@ -718,12 +630,59 @@ class AudioProvider extends ChangeNotifier {
           }
           _bufferStream = null;
         }
-        
+
         _soloudInitialized = false;
         debugPrint('✅ SoLoud sources disposed');
       } catch (e) {
         debugPrint('Error disposing SoLoud: $e');
       }
     }
+  }
+
+  @override
+  void onError(String msg) {
+    setStatusMessage = 'Initialization failed: $msg';
+    _emitEvent(ErrorEvent(message: 'Initialization failed: $msg'));
+    super.onError(msg);
+  }
+}
+
+class AudioState {
+  final ScreenType type;
+  final bool isAnimationPlaying;
+  final List<AiChatMessages> messages;
+  final bool isStreamingData;
+  final bool isRecording;
+  final String statusMessage;
+  final String? streamedResponse;
+
+  const AudioState({
+    this.type = ScreenType.message,
+    this.isAnimationPlaying = false,
+    this.messages = const [],
+    this.isStreamingData = false,
+    this.isRecording = false,
+    this.statusMessage = 'Ready',
+    this.streamedResponse,
+  });
+
+  AudioState copyWith({
+    ScreenType? type,
+    bool? isAnimationPlaying,
+    List<AiChatMessages>? messages,
+    bool? isStreamingData,
+    bool? isRecording,
+    String? statusMessage,
+    String? streamedResponse,
+  }) {
+    return AudioState(
+      type: type ?? this.type,
+      isAnimationPlaying: isAnimationPlaying ?? this.isAnimationPlaying,
+      messages: messages ?? this.messages,
+      isStreamingData: isStreamingData ?? this.isStreamingData,
+      isRecording: isRecording ?? this.isRecording,
+      statusMessage: statusMessage ?? this.statusMessage,
+      streamedResponse: streamedResponse ?? this.streamedResponse,
+    );
   }
 }

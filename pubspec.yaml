@@ -1,4 +1,4 @@
-name: gini_test_app
+name: tafsol_genie_app
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -34,16 +34,12 @@ dependencies:
   permission_handler: ^12.0.1
   flutter_soloud: ^3.4.6 # Low-level audio plugin for playback
   flutter_recorder: ^1.1.2 # Audio recording package with better cross-platform support
-  provider: ^6.1.5+1
   flutter_3d_controller: ^2.3.0
   camera: ^0.11.3
-
-
-
-
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+  flutter_riverpod: ^3.0.3
+  get_it: ^9.2.0
+  fluttertoast: ^9.0.0
 
 dev_dependencies:
   flutter_test:

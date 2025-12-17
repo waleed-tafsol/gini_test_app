@@ -1,12 +1,12 @@
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_3d_controller/flutter_3d_controller.dart';
-import 'package:gini_test_app/bottom_button.dart';
-import 'package:provider/provider.dart';
-import 'package:camera/camera.dart';
 import 'dart:async';
 
-import 'audio_provider.dart';
+import 'package:camera/camera.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_3d_controller/flutter_3d_controller.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../notifiers/audio_notifier.dart';
+import '../widgets/bottom_button.dart';
 
 class HumanModelView extends StatefulWidget {
   const HumanModelView({super.key});
@@ -23,7 +23,7 @@ class _HumanModelViewState extends State<HumanModelView> {
 
   // 3D model controller - now managed locally
   final Flutter3DController _humanModelController = Flutter3DController();
-  
+
   // Camera controller
   CameraController? _cameraController;
   List<CameraDescription>? _cameras;
@@ -65,7 +65,7 @@ class _HumanModelViewState extends State<HumanModelView> {
         );
 
         await _cameraController!.initialize();
-        
+
         if (mounted) {
           setState(() {
             _isCameraInitialized = true;
@@ -119,10 +119,13 @@ class _HumanModelViewState extends State<HumanModelView> {
   @override
   Widget build(BuildContext context) {
     // Listen to animation state changes from AudioProvider
-    return Selector<AudioProvider, bool>(
-      selector: (_, provider) => provider.getIsAnimationPlaying,
-      shouldRebuild: (previous, next) => previous != next,
-      builder: (context, isAnimationPlaying, child) {
+    return Consumer(
+      // selector: (_, provider) => provider.getIsAnimationPlaying,
+      // shouldRebuild: (previous, next) => previous != next,
+      builder: (context, ref, child) {
+        final bool isAnimationPlaying = ref.watch(
+          audioProvider.select((state) => state.isAnimationPlaying),
+        );
         // React to animation state changes
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
@@ -135,13 +138,9 @@ class _HumanModelViewState extends State<HumanModelView> {
             children: [
               // Camera background - full screen
               if (_isCameraInitialized && _cameraController != null)
-                SizedBox.expand(
-                  child: CameraPreview(_cameraController!),
-                )
+                SizedBox.expand(child: CameraPreview(_cameraController!))
               else if (_isCameraInitializing)
-                const Center(
-                  child: CircularProgressIndicator(),
-                )
+                const Center(child: CircularProgressIndicator())
               else
                 Container(
                   color: Colors.black,
@@ -192,9 +191,7 @@ class _HumanModelViewState extends State<HumanModelView> {
                 right: 0,
                 child: Padding(
                   padding: const EdgeInsets.only(bottom: 30.0),
-                  child: RepaintBoundary(
-                    child: BottomButton(),
-                  ),
+                  child: RepaintBoundary(child: BottomButton()),
                 ),
               ),
             ],
@@ -207,7 +204,7 @@ class _HumanModelViewState extends State<HumanModelView> {
   Widget _buildControlButtons(Flutter3DController controller) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.5),
+        color: Colors.black.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(25),
       ),
       padding: const EdgeInsets.all(8.0),
@@ -242,7 +239,8 @@ class _HumanModelViewState extends State<HumanModelView> {
           const SizedBox(height: 4),
           IconButton(
             onPressed: () async {
-              List<String> availableAnimations = await controller.getAvailableAnimations();
+              List<String> availableAnimations = await controller
+                  .getAvailableAnimations();
               debugPrint(
                 'Animations : $availableAnimations --- Length : ${availableAnimations.length}',
               );
@@ -257,13 +255,17 @@ class _HumanModelViewState extends State<HumanModelView> {
                 loopCount: 1,
               );
             },
-            icon: const Icon(Icons.format_list_bulleted_outlined, color: Colors.white),
+            icon: const Icon(
+              Icons.format_list_bulleted_outlined,
+              color: Colors.white,
+            ),
             tooltip: 'Select Animation',
           ),
           const SizedBox(height: 4),
           IconButton(
             onPressed: () async {
-              List<String> availableTextures = await controller.getAvailableTextures();
+              List<String> availableTextures = await controller
+                  .getAvailableTextures();
               debugPrint(
                 'Textures : $availableTextures --- Length : ${availableTextures.length}',
               );
@@ -308,7 +310,11 @@ class _HumanModelViewState extends State<HumanModelView> {
                 // Reserved for future model switching
               });
             },
-            icon: const Icon(Icons.restore_page_outlined, color: Colors.white, size: 30),
+            icon: const Icon(
+              Icons.restore_page_outlined,
+              color: Colors.white,
+              size: 30,
+            ),
             tooltip: 'Restore',
           ),
         ],
@@ -317,10 +323,10 @@ class _HumanModelViewState extends State<HumanModelView> {
   }
 
   Future<String?> showPickerDialog(
-      String title,
-      List<String> inputList, [
-        String? chosenItem,
-      ]) async {
+    String title,
+    List<String> inputList, [
+    String? chosenItem,
+  ]) async {
     return await showModalBottomSheet<String>(
       context: context,
       builder: (ctx) {
@@ -329,40 +335,40 @@ class _HumanModelViewState extends State<HumanModelView> {
           child: inputList.isEmpty
               ? Center(child: Text('$title list is empty'))
               : ListView.separated(
-            itemCount: inputList.length,
-            padding: const EdgeInsets.only(top: 16),
-            itemBuilder: (ctx, index) {
-              return InkWell(
-                onTap: () {
-                  Navigator.pop(context, inputList[index]);
-                },
-                child: Container(
-                  height: 50,
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('${index + 1}'),
-                      Text(inputList[index]),
-                      Icon(
-                        chosenItem == inputList[index]
-                            ? Icons.check_box
-                            : Icons.check_box_outline_blank,
+                  itemCount: inputList.length,
+                  padding: const EdgeInsets.only(top: 16),
+                  itemBuilder: (ctx, index) {
+                    return InkWell(
+                      onTap: () {
+                        Navigator.pop(context, inputList[index]);
+                      },
+                      child: Container(
+                        height: 50,
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('${index + 1}'),
+                            Text(inputList[index]),
+                            Icon(
+                              chosenItem == inputList[index]
+                                  ? Icons.check_box
+                                  : Icons.check_box_outline_blank,
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
-                  ),
+                    );
+                  },
+                  separatorBuilder: (ctx, index) {
+                    return const Divider(
+                      color: Colors.grey,
+                      thickness: 0.6,
+                      indent: 10,
+                      endIndent: 10,
+                    );
+                  },
                 ),
-              );
-            },
-            separatorBuilder: (ctx, index) {
-              return const Divider(
-                color: Colors.grey,
-                thickness: 0.6,
-                indent: 10,
-                endIndent: 10,
-              );
-            },
-          ),
         );
       },
     );
