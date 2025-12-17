@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
-class WebSocketManager {
+class WebSocketService {
   final String url;
   WebSocketChannel? _channel;
   StreamSubscription? _socketSubscription;
@@ -17,7 +17,7 @@ class WebSocketManager {
   Function(dynamic error)? onError;
   VoidCallback? onDisconnected;
 
-  WebSocketManager({required this.url});
+  WebSocketService({required this.url});
 
   Future<void> connect() async {
     try {
@@ -27,11 +27,15 @@ class WebSocketManager {
         (data) {
           // Log all received websocket data
           if (data is String) {
-            debugPrint('📥 [WebSocket] Received: ${data.length > 200 ? data.substring(0, 200) + "..." : data}');
+            debugPrint(
+              '📥 [WebSocket] Received: ${data.length > 200 ? data.substring(0, 200) + "..." : data}',
+            );
           } else {
-            debugPrint('📥 [WebSocket] Received binary data: ${data.runtimeType}, size: ${data is List ? data.length : "unknown"}');
+            debugPrint(
+              '📥 [WebSocket] Received binary data: ${data.runtimeType}, size: ${data is List ? data.length : "unknown"}',
+            );
           }
-          
+
           if (onDataReceived != null) {
             onDataReceived!(data);
           }
@@ -73,11 +77,13 @@ class WebSocketManager {
       try {
         // Log all sent websocket data
         if (data is String) {
-          debugPrint('📤 [WebSocket] Sending: ${data.length > 200 ? data.substring(0, 200) + "..." : data}');
+          debugPrint(
+            '📤 [WebSocket] Sending: ${data.length > 200 ? data.substring(0, 200) + "..." : data}',
+          );
         } else {
           debugPrint('📤 [WebSocket] Sending binary data: ${data.runtimeType}');
         }
-        
+
         _channel!.sink.add(data);
       } catch (e) {
         debugPrint('❌ [WebSocket] Error sending data: $e');
@@ -86,7 +92,9 @@ class WebSocketManager {
         }
       }
     } else {
-      debugPrint('⚠️ [WebSocket] Cannot send: channel=${_channel != null}, connected=$_isConnected');
+      debugPrint(
+        '⚠️ [WebSocket] Cannot send: channel=${_channel != null}, connected=$_isConnected',
+      );
     }
   }
 

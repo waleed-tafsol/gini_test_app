@@ -10,15 +10,15 @@ import '../../models/ai_chat_messages.dart';
 import '../../models/permission_handler.dart';
 import '../../models/socket_message_models.dart';
 import '../../models/ui_event.dart';
+import '../../services/websocket_service.dart';
 import '../../utils/base_notifier.dart';
 import '../../utils/enums.dart';
-import '../../websocket_manager.dart';
 
 final audioProvider = NotifierProvider.autoDispose(() => AudioNotifier());
 
 class AudioNotifier extends BaseNotifier<AudioState> {
   final String _wsUrl = 'wss://genie-api-test.devcustomprojects.online/ws';
-  late final WebSocketManager _webSocketManager;
+  late final WebSocketService _webSocketManager;
   final SoLoud _soloud = SoLoud.instance;
   bool _soloudInitialized = false;
   dynamic _bufferStream; // Buffer stream for PCM16 playback (SoundSource type)
@@ -56,7 +56,7 @@ class AudioNotifier extends BaseNotifier<AudioState> {
   }
 
   AudioNotifier() : super(AudioState()) {
-    _webSocketManager = WebSocketManager(url: _wsUrl);
+    _webSocketManager = WebSocketService(url: _wsUrl);
     _webSocketManager.onDataReceived = _handleWebSocketData;
     _webSocketManager.onStatusChanged = (message) => setStatusMessage = message;
     _webSocketManager.onError = (error) {
