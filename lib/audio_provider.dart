@@ -11,7 +11,7 @@ import 'ui_event.dart';
 import 'websocket_manager.dart';
 
 class AudioProvider extends ChangeNotifier {
-  final String _wsUrl = 'wss://cf69646828d6.ngrok-free.app/ws';
+  final String _wsUrl = 'wss://ec0fd1bae7e2.ngrok-free.app/ws';
   late final WebSocketManager _webSocketManager;
 
   String _screenType = 'message';
