@@ -9,7 +9,7 @@ class AudioState {
   final bool isRecording;
   final String statusMessage;
   final String? streamedResponse;
-
+  final bool isConnected;
   final String sessionId;
 
   const AudioState({
@@ -20,7 +20,8 @@ class AudioState {
     this.isRecording = false,
     this.statusMessage = 'Ready',
     this.streamedResponse,
-    this.sessionId = ''
+    this.isConnected = false,
+    this.sessionId = '',
   });
 
   AudioState copyWith({
@@ -31,7 +32,8 @@ class AudioState {
     bool? isRecording,
     String? statusMessage,
     String? streamedResponse,
-    String? sessionId
+    bool? isConnected,
+    String? sessionId,
   }) {
     return AudioState(
       type: type ?? this.type,
@@ -41,7 +43,8 @@ class AudioState {
       isRecording: isRecording ?? this.isRecording,
       statusMessage: statusMessage ?? this.statusMessage,
       streamedResponse: streamedResponse ?? this.streamedResponse,
-      sessionId: sessionId?? this.sessionId,
+      isConnected: isConnected ?? this.isConnected,
+      sessionId: sessionId ?? this.sessionId,
     );
   }
 }

@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../view_model/notifiers/audio_notifier.dart';
 
-
-
 class BottomButton extends ConsumerStatefulWidget {
   const BottomButton({super.key});
 
@@ -47,9 +45,12 @@ class _BottomButtonState extends ConsumerState<BottomButton>
     final audioNotifier = ref.read(audioProvider.notifier);
     return Consumer(
       builder: (_, ref, _) {
-        final isRecording = ref.watch(
-          audioProvider.select((state) => state.isRecording),
+        final state = ref.watch(
+          audioProvider.select(
+            (state) => (state.isRecording, state.isConnected),
+          ),
         );
+        final isRecording = state.$1;
         if (isRecording != _wasRecording) {
           _wasRecording = isRecording;
           if (isRecording) {
@@ -66,7 +67,7 @@ class _BottomButtonState extends ConsumerState<BottomButton>
             children: [
               GestureDetector(
                 onTapDown: (details) {
-                  if (audioNotifier.getIsConnected && !isRecording) {
+                  if (state.$2 && !isRecording) {
                     audioNotifier.startStreamingAudio();
                   }
                 },
@@ -114,7 +115,7 @@ class _BottomButtonState extends ConsumerState<BottomButton>
                         height: 80,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: audioNotifier.getIsConnected
+                          color: state.$2
                               ? Colors.green.withValues(alpha: 0.3)
                               : Colors.grey.withValues(alpha: 0.3),
                         ),
@@ -124,9 +125,7 @@ class _BottomButtonState extends ConsumerState<BottomButton>
                             height: 60,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: audioNotifier.getIsConnected
-                                  ? Colors.green
-                                  : Colors.grey,
+                              color: state.$2 ? Colors.green : Colors.grey,
                             ),
                             child: Icon(
                               Icons.mic,
@@ -147,7 +146,7 @@ class _BottomButtonState extends ConsumerState<BottomButton>
                   height: 80,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: audioNotifier.getIsConnected
+                    color: state.$2
                         ? Colors.orange.withValues(alpha: 0.3)
                         : Colors.grey.withValues(alpha: 0.3),
                   ),
@@ -157,9 +156,7 @@ class _BottomButtonState extends ConsumerState<BottomButton>
                       height: 60,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: audioNotifier.getIsConnected
-                            ? Colors.orange
-                            : Colors.grey,
+                        color: state.$2 ? Colors.orange : Colors.grey,
                       ),
                       child: Icon(
                         Icons.pause_presentation,

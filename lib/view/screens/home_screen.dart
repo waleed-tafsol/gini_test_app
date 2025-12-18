@@ -40,14 +40,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: audioNotifier.getIsConnected
+                    color: state.isConnected
                         ? Colors.green[50]
                         : Colors.red[50],
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: audioNotifier.getIsConnected
-                          ? Colors.green
-                          : Colors.red,
+                      color: state.isConnected ? Colors.green : Colors.red,
                     ),
                   ),
                   child: Column(
@@ -65,18 +63,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             height: 10,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: audioNotifier.getIsConnected
+                              color: state.isConnected
                                   ? Colors.green
                                   : Colors.red,
                             ),
                           ),
                           SizedBox(width: 8),
                           Text(
-                            audioNotifier.getIsConnected
-                                ? 'Connected'
-                                : 'Disconnected',
+                            state.isConnected ? 'Connected' : 'Disconnected',
                             style: TextStyle(
-                              color: audioNotifier.getIsConnected
+                              color: state.isConnected
                                   ? Colors.green
                                   : Colors.red,
                             ),
@@ -94,17 +90,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   children: [
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: audioNotifier.getIsConnected
+                        onPressed: state.isConnected
                             ? null
                             : () => audioNotifier.reconnect(),
                         icon: Icon(Icons.wifi, size: 20),
                         label: Text(
-                          audioNotifier.getIsConnected
-                              ? 'Connected'
-                              : 'Reconnect',
+                          state.isConnected ? 'Connected' : 'Reconnect',
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: audioNotifier.getIsConnected
+                          backgroundColor: state.isConnected
                               ? Colors.green
                               : Colors.blue,
                           foregroundColor: Colors.white,
@@ -114,7 +108,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     SizedBox(width: 10),
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: audioNotifier.getIsConnected
+                        onPressed: state.isConnected
                             ? audioNotifier.disconnectWebSocket
                             : null,
                         icon: Icon(Icons.wifi_off, size: 20),
@@ -133,10 +127,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   width: double.infinity,
                   height: 60,
                   child: ElevatedButton.icon(
-                    onPressed: audioNotifier.getIsConnected
+                    onPressed: state.isConnected
                         ? () {
-                      audioNotifier.callSessionId();
-                    }
+                            audioNotifier.callSessionId();
+                          }
                         : null,
                     icon: const Icon(Icons.message, size: 24),
                     label: const Text(
@@ -157,7 +151,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   width: double.infinity,
                   height: 60,
                   child: ElevatedButton.icon(
-                    onPressed: audioNotifier.getIsConnected && state.sessionId.isNotEmpty
+                    onPressed: state.isConnected && state.sessionId.isNotEmpty
                         ? () {
                             audioNotifier.setScreenType(ScreenType.message);
 
@@ -189,7 +183,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   width: double.infinity,
                   height: 60,
                   child: ElevatedButton.icon(
-                    onPressed: audioNotifier.getIsConnected && state.sessionId.isNotEmpty
+                    onPressed: state.isConnected && state.sessionId.isNotEmpty
                         ? () {
                             audioNotifier.setScreenType(ScreenType.humanModel);
                             Navigator.push(

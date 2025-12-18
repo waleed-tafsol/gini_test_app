@@ -11,9 +11,9 @@ import '../../models/permission_handler.dart';
 import '../../models/socket_message_models.dart';
 import '../../models/ui_event.dart';
 import '../../services/websocket_service.dart';
+import '../../utils/enums.dart';
 import '../states/audio_state.dart';
 import 'base_notifier.dart';
-import '../../utils/enums.dart';
 
 final audioProvider = NotifierProvider.autoDispose(() => AudioNotifier());
 
@@ -22,10 +22,10 @@ class AudioNotifier extends BaseNotifier<AudioState> {
   late final WebSocketService _webSocketManager;
   final SoLoud _soloud = SoLoud.instance;
   bool _soloudInitialized = false;
-  dynamic _bufferStream; // Buffer stream for PCM16 playback (SoundSource type)
-  SoundHandle? _streamHandle; // Handle for the playing stream
-  Timer? _audioCompletionTimer; // Timer to track when audio playback completes
-  int _totalAudioBytes = 0; // Track total audio bytes for duration calculation
+  dynamic _bufferStream;
+  SoundHandle? _streamHandle;
+  Timer? _audioCompletionTimer;
+  int _totalAudioBytes = 0;
   final Recorder _recorder = Recorder.instance;
   StreamSubscription<AudioDataContainer>? _audioInputSubscription;
   final PermissionHandler _permissionHandler = PermissionHandler();
@@ -33,13 +33,23 @@ class AudioNotifier extends BaseNotifier<AudioState> {
       StreamController<UIEvent>.broadcast();
   StreamSubscription<UIEvent>? _uiEventSubscription;
   Function(UIEvent)? _uiEventHandler;
+  static const int _sampleRate = 16000;
 
+  AudioNotifier() : super(AudioState()) {
+    _webSocketManager = WebSocketService(url: _wsUrl);
+    _webSocketManager.onDataReceived = _handleWebSocketData;
+    _webSocketManager.onStatusChanged = (message) => setStatusMessage = message;
+    _webSocketManager.onError = (error) {
+      stopStreamingAudio();
+    };
+    _webSocketManager.onDisconnected = () {
+      stopStreamingAudio();
+    };
+  }
 
   void setSessionId(String value) {
     state = state.copyWith(sessionId: value);
   }
-
-  static const int _sampleRate = 16000; // WebSocket expects 16kHz
 
   void setScreenType(ScreenType type) {
     state = state.copyWith(type: type);
@@ -61,18 +71,6 @@ class AudioNotifier extends BaseNotifier<AudioState> {
     });
   }
 
-  AudioNotifier() : super(AudioState()) {
-    _webSocketManager = WebSocketService(url: _wsUrl);
-    _webSocketManager.onDataReceived = _handleWebSocketData;
-    _webSocketManager.onStatusChanged = (message) => setStatusMessage = message;
-    _webSocketManager.onError = (error) {
-      stopStreamingAudio();
-    };
-    _webSocketManager.onDisconnected = () {
-      stopStreamingAudio();
-    };
-  }
-
   set setIsRecording(bool value) {
     debugPrint(
       '🔄 setIsRecording called with value: $value (current: ${state.isRecording})',
@@ -85,8 +83,6 @@ class AudioNotifier extends BaseNotifier<AudioState> {
       debugPrint('⚠️ _isRecording already $value, skipping update');
     }
   }
-
-  bool get getIsConnected => _webSocketManager.isConnected;
 
   set setStatusMessage(String value) {
     state = state.copyWith(statusMessage: value);
@@ -130,6 +126,7 @@ class AudioNotifier extends BaseNotifier<AudioState> {
 
       await _initializeAudio();
       await _webSocketManager.connect();
+      state = state.copyWith(isConnected: true);
     });
   }
 
@@ -191,7 +188,7 @@ class AudioNotifier extends BaseNotifier<AudioState> {
           // Handle final_transcript - stops animation
 
           // Handle other message types
-          if(type == 'session_id_acknowledged'){
+          if (type == 'session_id_acknowledged') {
             final sessionId = jsonData['session_id'] as String?;
             setSessionId(sessionId!);
 
@@ -544,14 +541,11 @@ class AudioNotifier extends BaseNotifier<AudioState> {
     });
   }
 
-  void callSessionId(){
-    final startEvent = SessionGeneratorModel(
-      type: 'session_id',
-    );
+  void callSessionId() {
+    final startEvent = SessionGeneratorModel(type: 'session_id');
     final jsonString = jsonEncode(startEvent.toJson());
     _webSocketManager.send(jsonString);
   }
-
 
   Future<void> interruptStreamingAudio() async {
     return await runSafely(() async {
@@ -610,11 +604,13 @@ class AudioNotifier extends BaseNotifier<AudioState> {
 
     await stopStreamingAudio();
     await _webSocketManager.reconnect();
+    state = state.copyWith(isConnected: true);
   }
 
   Future<void> disconnectWebSocket() async {
     await _webSocketManager.disconnect();
     setIsRecording = false;
+    state = state.copyWith(isConnected: false);
   }
 
   @override
@@ -671,5 +667,3 @@ class AudioNotifier extends BaseNotifier<AudioState> {
     super.onError(msg);
   }
 }
-
-
