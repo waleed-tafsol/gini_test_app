@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:tafsol_genie_app/view/screens/home_screen.dart';
 
-import 'ui/pages/home_screen.dart';
 
 void main() => runApp(ProviderScope(child: const MyApp()));
 

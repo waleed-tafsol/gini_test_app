@@ -70,14 +70,24 @@ class AudioEndMessageModel {
   }
 }
 
-class InteruptEventModel {
+class InterruptEventModel {
   final String type;
   final String sessionId;
   final String timestamp = DateTime.now().toIso8601String();
 
-  InteruptEventModel({this.type = "interrupt", required this.sessionId});
+  InterruptEventModel({this.type = "interrupt", required this.sessionId});
 
   Map<String, dynamic> toJson() {
     return {'type': type, 'session_id': sessionId, 'timestamp': timestamp};
+  }
+}
+
+class SessionGeneratorModel {
+  final String type;
+
+  SessionGeneratorModel({ required this.type});
+
+  Map<String, dynamic> toJson() {
+    return {'type': type};
   }
 }
