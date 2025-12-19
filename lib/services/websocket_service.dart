@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+
+import '../models/message_data.dart';
 
 class WebSocketService {
   final String url;
@@ -12,12 +15,18 @@ class WebSocketService {
   bool get isConnected => _isConnected;
 
   // Callbacks
-  Function(dynamic data)? onDataReceived;
-  Function(String message)? onStatusChanged;
-  Function(dynamic error)? onError;
-  VoidCallback? onDisconnected;
+  final ValueSetter<MessageData>? onDataReceived;
+  final Function(String message)? onStatusChanged;
+  final Function(dynamic error)? onError;
+  final VoidCallback? onDisconnected;
 
-  WebSocketService({required this.url});
+  WebSocketService({
+    required this.url,
+    this.onDataReceived,
+    this.onStatusChanged,
+    this.onError,
+    this.onDisconnected,
+  });
 
   Future<void> connect() async {
     try {
@@ -37,7 +46,15 @@ class WebSocketService {
           }
 
           if (onDataReceived != null) {
-            onDataReceived!(data);
+            if (data == null) return;
+            if (data.isEmpty) return;
+            if (data is String) {
+              onDataReceived!(MessageData.fromJson(jsonDecode(data)));
+            } else {
+              debugPrint(
+                '⚠️ [WebSocket] Received non-string data: ${data.runtimeType}',
+              );
+            }
           }
         },
         onError: (error) {

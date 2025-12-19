@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_recorder/flutter_recorder.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
+import 'package:tafsol_genie_app/models/message_data.dart';
 
 import '../../models/ai_chat_messages.dart';
 import '../../models/permission_handler.dart';
@@ -36,15 +37,13 @@ class AudioNotifier extends BaseNotifier<AudioState> {
   static const int _sampleRate = 16000;
 
   AudioNotifier() : super(AudioState()) {
-    _webSocketManager = WebSocketService(url: _wsUrl);
-    _webSocketManager.onDataReceived = _handleWebSocketData;
-    _webSocketManager.onStatusChanged = (message) => setStatusMessage = message;
-    _webSocketManager.onError = (error) {
-      stopStreamingAudio();
-    };
-    _webSocketManager.onDisconnected = () {
-      stopStreamingAudio();
-    };
+    _webSocketManager = WebSocketService(
+      url: _wsUrl,
+      onDataReceived: _handleWebSocketData,
+      onStatusChanged: (message) => setStatusMessage = message,
+      onError: (error) => stopStreamingAudio(),
+      onDisconnected: stopStreamingAudio,
+    );
   }
 
   void setSessionId(String value) {
@@ -164,90 +163,63 @@ class AudioNotifier extends BaseNotifier<AudioState> {
     state = state.copyWith(messages: [message, ...state.messages]);
   }
 
-  Future<void> _handleWebSocketData(dynamic data) async {
+  Future<void> _handleWebSocketData(MessageData message) async {
     return await runSafely(() async {
-      if (data == null) return;
-      if (data.isEmpty) return;
-
-      if (data is String) {
-        // Parse JSON - defer to microtask for non-audio messages to reduce main thread blocking
-        final jsonData = jsonDecode(data) as Map<String, dynamic>;
-        final type = jsonData['type'] as String?;
-
-        // Reduced logging - only log non-audio messages to avoid spam
-        if (type != 'audio_pcm_ready') {
-          debugPrint('📨 [WebSocket] Type: ${type ?? "unknown"}');
-        }
-
-        if (type == null) {
-          debugPrint('⚠️ [WebSocket] Warning: Message type is null');
-          return;
-        } else {
-          // Handle audio_pcm_ready - starts animation with loop count 0
-
-          // Handle final_transcript - stops animation
-
-          // Handle other message types
-          if (type == 'session_id_acknowledged') {
-            final sessionId = jsonData['session_id'] as String?;
-            setSessionId(sessionId!);
-
-            return;
-          }
-          if (state.type == ScreenType.message) {
-            if (type == 'audio_pcm_ready') {
-              final chunkIdx = jsonData['chunk_idx'];
-              debugPrint(
-                '🔊 [WebSocket] Handling: audio_pcm_ready - chunk_idx: $chunkIdx',
-              );
-              _handelAudioPcmReady(jsonData);
-            } else if (type == "session_started") {
-              debugPrint('✅ [WebSocket] Handling: session_started');
-              _handelSessionStarted(jsonData);
-            } else if (type == "interrupt_acknowledged") {
-              debugPrint('🛑 [WebSocket] Handling: interrupt_acknowledged');
-              _handelInterruptAcknowledged();
-            } else if (type == "tts_complete") {
-              debugPrint('✅ [WebSocket] Handling: tts_complete');
-              _handelTTSComplete(jsonData);
-            } else if (type == "streamed_response") {
-              debugPrint(
-                '📝 [WebSocket] Handling: streamed_response - ${jsonData['response']}',
-              );
-              _handelStreamedResponse(jsonData);
-            } else if (type == "final_transcript") {
-              debugPrint(
-                '💬 [WebSocket] Handling: final_transcript - ${jsonData['text']}',
-              );
-              _handelFinalTranscript(jsonData);
-            } else {
-              debugPrint(
-                '❓ [WebSocket] Unhandled message type in message screen: $type',
-              );
-            }
-          } else {
-            if (type == 'audio_pcm_ready') {
-              // Process audio without blocking - no debug print for every chunk
-              _handelAudioPcmReady(jsonData);
-              // Throttle animation state updates - only update once when starting
-              if (!state.isAnimationPlaying) {
-                state = state.copyWith(isAnimationPlaying: true);
-              }
-            } else if (type == "tts_complete") {
-              debugPrint('✅ [WebSocket] Handling: tts_complete');
-            }
-          }
-        }
+      final type = message.type;
+      if (type == null) {
+        debugPrint('⚠️ [WebSocket] Warning: Message type is null');
+        return;
       } else {
-        debugPrint(
-          '⚠️ [WebSocket] Received non-string data: ${data.runtimeType}',
-        );
+        if (type == MessageType.sessionIdAcknowledged) {
+          final sessionId = message.data['session_id'] as String?;
+          setSessionId(sessionId!);
+
+          return;
+        }
+        if (state.type == ScreenType.message) {
+          if (type == MessageType.audioPcmReady) {
+            final chunkIdx = message.data['chunk_idx'];
+            debugPrint(
+              '🔊 [WebSocket] Handling: audio_pcm_ready - chunk_idx: $chunkIdx',
+            );
+            _handelAudioPcmReady(message.data);
+          } else if (type == MessageType.sessionStarted) {
+            debugPrint('✅ [WebSocket] Handling: session_started');
+            _handelSessionStarted(message.data);
+          } else if (type == MessageType.interruptAcknowledged) {
+            debugPrint('🛑 [WebSocket] Handling: interrupt_acknowledged');
+            _handelInterruptAcknowledged();
+          } else if (type == MessageType.ttsComplete) {
+            debugPrint('✅ [WebSocket] Handling: tts_complete');
+            _handelTTSComplete(message.data);
+          } else if (type == "streamed_response") {
+            debugPrint(
+              '📝 [WebSocket] Handling: streamed_response - ${message.data['response']}',
+            );
+            _handelStreamedResponse(message.data);
+          } else if (type == "final_transcript") {
+            debugPrint(
+              '💬 [WebSocket] Handling: final_transcript - ${message.data['text']}',
+            );
+            _handelFinalTranscript(message.data);
+          } else {
+            debugPrint(
+              '❓ [WebSocket] Unhandled message type in message screen: $type',
+            );
+          }
+        } else {
+          if (type == MessageType.audioPcmReady) {
+            _handelAudioPcmReady(message.data);
+            if (!state.isAnimationPlaying) {
+              state = state.copyWith(isAnimationPlaying: true);
+            }
+          } else if (type == MessageType.ttsComplete) {
+            debugPrint('✅ [WebSocket] Handling: tts_complete');
+          }
+        }
       }
     });
   }
-
-  // Audio processing for playback using flutter_soloud
-  // Note: We play only the latest audio, not queued chunks
 
   void _handelAudioPcmReady(Map<String, dynamic> jsonData) {
     final pcmDataBase64 = jsonData['pcm_data'] as String?;
