@@ -24,53 +24,20 @@ class EmbossedGlassButton extends StatefulWidget {
 }
 
 class _EmbossedGlassButtonState extends State<EmbossedGlassButton> {
-  bool _isPressed = false;
+  //bool _isPressed = false;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTapDown: (_) => setState(() => _isPressed = true),
-      onTapUp: (_) {
-        setState(() => _isPressed = false);
+      onTap: (){
         widget.onPressed();
       },
-      onTapCancel: () => setState(() => _isPressed = false),
       child: AnimatedContainer(
         duration: Duration(milliseconds: 150),
         width: widget.width,
         height: widget.height,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
-          // Outer glow shadow (light source from top-left)
-          boxShadow: _isPressed
-              ? [
-            // Pressed state - inverted shadows
-            BoxShadow(
-              color: Colors.black.withOpacity(0.3),
-              offset: Offset(-4, -4),
-              blurRadius: 8,
-            ),
-            BoxShadow(
-              color: Colors.white.withOpacity(0.1),
-              offset: Offset(4, 4),
-              blurRadius: 8,
-            ),
-          ]
-              : [
-            // Normal state - embossed effect
-            BoxShadow(
-              color: Colors.white.withOpacity(0.3),
-              offset: Offset(-6, -6),
-              blurRadius: 12,
-              spreadRadius: 0,
-            ),
-            BoxShadow(
-              color: Colors.black.withOpacity(0.3),
-              offset: Offset(6, 6),
-              blurRadius: 12,
-              spreadRadius: 0,
-            ),
-          ],
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(20),

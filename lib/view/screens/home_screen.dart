@@ -39,14 +39,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       body: Stack(
         children: [
           Image.asset(
-            'assets/background.jpg',
+            'assets/background1.png',
             fit: BoxFit.cover,
             width: double.infinity,
             height: double.infinity,
           ),
           ClipRect(
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
               child: Consumer(
                 builder: (context, ref, child) {
                   final state = ref.watch(audioProvider);
@@ -167,58 +167,26 @@ class _CircularConnectButton extends StatefulWidget {
 }
 
 class _CircularConnectButtonState extends State<_CircularConnectButton> {
-  bool _isPressed = false;
 
   @override
   Widget build(BuildContext context) {
     final size = 180.0; // Huge circular button size
 
     return GestureDetector(
-      onTapDown: (_) => setState(() => _isPressed = true),
-      onTapUp: (_) {
-        setState(() => _isPressed = false);
+      onTap: (){
         widget.onPressed();
+
       },
-      onTapCancel: () => setState(() => _isPressed = false),
       child: AnimatedContainer(
         duration: Duration(milliseconds: 150),
         width: size,
         height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          boxShadow: _isPressed
-              ? [
-                  // Pressed state - inverted shadows
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    offset: Offset(-6, -6),
-                    blurRadius: 12,
-                  ),
-                  BoxShadow(
-                    color: Colors.white.withOpacity(0.1),
-                    offset: Offset(6, 6),
-                    blurRadius: 12,
-                  ),
-                ]
-              : [
-                  // Normal state - embossed effect
-                  BoxShadow(
-                    color: Colors.white.withOpacity(0.3),
-                    offset: Offset(-8, -8),
-                    blurRadius: 16,
-                    spreadRadius: 0,
-                  ),
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    offset: Offset(8, 8),
-                    blurRadius: 16,
-                    spreadRadius: 0,
-                  ),
-                ],
         ),
         child: ClipOval(
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(

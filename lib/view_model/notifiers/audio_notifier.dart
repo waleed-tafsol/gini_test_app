@@ -192,12 +192,12 @@ class AudioNotifier extends BaseNotifier<AudioState> {
           } else if (type == MessageType.ttsComplete) {
             debugPrint('✅ [WebSocket] Handling: tts_complete');
             _handelTTSComplete(message.data);
-          } else if (type == "streamed_response") {
+          } else if (type == MessageType.streamedResponse) {
             debugPrint(
               '📝 [WebSocket] Handling: streamed_response - ${message.data['response']}',
             );
             _handelStreamedResponse(message.data);
-          } else if (type == "final_transcript") {
+          } else if (type == MessageType.finalTranscript) {
             debugPrint(
               '💬 [WebSocket] Handling: final_transcript - ${message.data['text']}',
             );
