@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:tafsol_genie_app/utils/enums.dart';
 
 import '../../utils/embossed_glass_button.dart';
@@ -39,14 +40,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       body: Stack(
         children: [
           Image.asset(
-            'assets/background1.png',
+            'assets/background.jpg',
             fit: BoxFit.cover,
             width: double.infinity,
             height: double.infinity,
           ),
           ClipRect(
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
               child: Consumer(
                 builder: (context, ref, child) {
                   final state = ref.watch(audioProvider);
@@ -184,33 +185,23 @@ class _CircularConnectButtonState extends State<_CircularConnectButton> {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
         ),
-        child: ClipOval(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.white.withOpacity(0.25),
-                    Colors.white.withOpacity(0.05),
-                  ],
-                ),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.5),
-                  width: 2.5,
-                ),
-              ),
-              child: Center(
-                child: Icon(
-                  widget.isConnected
-                      ? CupertinoIcons.bolt_fill
-                      : CupertinoIcons.bolt_slash_fill,
-                  color: Colors.white,
-                  size: 80,
-                ),
+        child: LiquidGlassLayer(
+          settings: LiquidGlassSettings(
+            thickness: 100,
+            glassColor: Color(0x1AFFFFFF),
+            lightIntensity: 1,
+           // saturation: 1.2,
+          ),
+          child: LiquidGlass(
+            shape: LiquidOval(
+            ),
+            child: Center(
+              child: Icon(
+                widget.isConnected
+                    ? CupertinoIcons.bolt_fill
+                    : CupertinoIcons.bolt_slash_fill,
+                color: Colors.white,
+                size: 80,
               ),
             ),
           ),
