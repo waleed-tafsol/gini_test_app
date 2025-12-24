@@ -80,7 +80,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         SizedBox(height: 40),
                         if (state.isConnected)
                           AnimatedWrapper(
-                            animationType: AnimationType.fadeIn,
+                            animationType: AnimationType.slideRight,
                             duration: const Duration(seconds:1),
                             child: EmbossedGlassButton(
                               text: 'Get Session ID',
@@ -97,7 +97,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         // Message button
                         if (state.isConnected && state.sessionId.isNotEmpty)
                           AnimatedWrapper(
-                            animationType: AnimationType.fadeIn,
+                            animationType: AnimationType.slideRight,
                             duration: const Duration(seconds:2),
                             child: EmbossedGlassButton(
                               text: 'Message',
@@ -121,7 +121,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         // Human button
                         if (state.isConnected && state.sessionId.isNotEmpty)
                           AnimatedWrapper(
-                            animationType: AnimationType.fadeIn,
+                            animationType: AnimationType.slideRight,
                             duration: const Duration(seconds:3),
                             child: EmbossedGlassButton(
                               text: 'Human',
