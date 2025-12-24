@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../view_model/notifiers/audio_notifier.dart';
 
@@ -45,215 +46,227 @@ class _BottomButtonState extends ConsumerState<BottomButton>
   @override
   Widget build(BuildContext context) {
     final audioNotifier = ref.read(audioProvider.notifier);
-    return Consumer(
-      builder: (_, ref, _) {
-        final state = ref.watch(
-          audioProvider.select(
-            (state) => (state.isRecording, state.isConnected),
-          ),
-        );
-        final isRecording = state.$1;
-        if (isRecording != _wasRecording) {
-          _wasRecording = isRecording;
-          if (isRecording) {
-            _recordingAnimationController.repeat(reverse: true);
-          } else {
-            _recordingAnimationController.stop();
-            _recordingAnimationController.reset();
+    return SafeArea(
+      child: Consumer(
+        builder: (_, ref, _) {
+          final state = ref.watch(
+            audioProvider.select(
+              (state) => (state.isRecording, state.isConnected),
+            ),
+          );
+          final isRecording = state.$1;
+          if (isRecording != _wasRecording) {
+            _wasRecording = isRecording;
+            if (isRecording) {
+              _recordingAnimationController.repeat(reverse: true);
+            } else {
+              _recordingAnimationController.stop();
+              _recordingAnimationController.reset();
+            }
           }
-        }
-        return Align(
-          alignment: Alignment.bottomCenter,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              GestureDetector(
-                onTapDown: (details) {
-                  if (state.$2 && !isRecording) {
-                    audioNotifier.startStreamingAudio();
-                  }
-                },
-                onTapUp: (details) {
-                  if (isRecording) {
-                    audioNotifier.stopStreamingAudio();
-                  }
-                },
-                onTapCancel: () {
-                  if (isRecording) {
-                    audioNotifier.stopStreamingAudio();
-                  }
-                },
-                child: isRecording
-                    ? AnimatedBuilder(
-                        animation: _pulseAnimation,
-                        builder: (context, child) {
-                          return ClipOval(
-                            child: BackdropFilter(
-                              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                              child: Container(
-                                width: 80 * _pulseAnimation.value,
-                                height: 80 * _pulseAnimation.value,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                    colors: [
-                                      Colors.red.withOpacity(0.4),
-                                      Colors.red.withOpacity(0.2),
+          return Align(
+            alignment: Alignment.bottomCenter,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                GestureDetector(
+                  onTapDown: (details) {
+                    if (state.$2 && !isRecording) {
+                      audioNotifier.startStreamingAudio();
+                    }
+                  },
+                  onTapUp: (details) {
+                    if (isRecording) {
+                      audioNotifier.stopStreamingAudio();
+                    }
+                  },
+                  onTapCancel: () {
+                    if (isRecording) {
+                      audioNotifier.stopStreamingAudio();
+                    }
+                  },
+                  child: isRecording
+                      ? AnimatedBuilder(
+                          animation: _pulseAnimation,
+                          builder: (context, child) {
+                            return ClipOval(
+                              child: BackdropFilter(
+                                filter: ImageFilter.blur(
+                                  sigmaX: 10,
+                                  sigmaY: 10,
+                                ),
+                                child: Container(
+                                  width: (80 * _pulseAnimation.value).w,
+                                  height: (80 * _pulseAnimation.value).h,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [
+                                        Colors.red.withValues(alpha: 0.4),
+                                        Colors.red.withValues(alpha: 0.2),
+                                      ],
+                                    ),
+                                    border: Border.all(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.3,
+                                      ),
+                                      width: 2,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.red.withValues(
+                                          alpha: 0.3,
+                                        ),
+                                        blurRadius: 20,
+                                        spreadRadius: 2,
+                                      ),
                                     ],
                                   ),
-                                  border: Border.all(
-                                    color: Colors.white.withOpacity(0.3),
-                                    width: 2,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.red.withOpacity(0.3),
-                                      blurRadius: 20,
-                                      spreadRadius: 2,
-                                    ),
-                                  ],
-                                ),
-                                child: Center(
-                                  child: Container(
-                                    width: 60,
-                                    height: 60,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Colors.red.withOpacity(0.8),
-                                    ),
-                                    child: Icon(
-                                      Icons.mic,
-                                      color: Colors.white,
-                                      size: 30,
+                                  child: Center(
+                                    child: Container(
+                                      width: 60.w,
+                                      height: 60.h,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Colors.red.withValues(
+                                          alpha: 0.8,
+                                        ),
+                                      ),
+                                      child: Icon(
+                                        Icons.mic,
+                                        color: Colors.white,
+                                        size: 30.sp,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
+                            );
+                          },
+                        )
+                      : ClipOval(
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                            child: Container(
+                              width: 80.w,
+                              height: 80.h,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: state.$2
+                                      ? [
+                                          Colors.green.withValues(alpha: 0.4),
+                                          Colors.green.withValues(alpha: 0.2),
+                                        ]
+                                      : [
+                                          Colors.grey.withValues(alpha: 0.4),
+                                          Colors.grey.withValues(alpha: 0.2),
+                                        ],
+                                ),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.3),
+                                  width: 2.w,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color:
+                                        (state.$2 ? Colors.green : Colors.grey)
+                                            .withValues(alpha: 0.3),
+                                    blurRadius: 20.r,
+                                    spreadRadius: 2.r,
+                                  ),
+                                ],
+                              ),
+                              child: Center(
+                                child: Container(
+                                  width: 60.w,
+                                  height: 60.h,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: state.$2
+                                        ? Colors.green.withValues(alpha: 0.8)
+                                        : Colors.grey.withValues(alpha: 0.8),
+                                  ),
+                                  child: Icon(
+                                    Icons.mic,
+                                    color: Colors.white,
+                                    size: 30.sp,
+                                  ),
+                                ),
+                              ),
                             ),
-                          );
-                        },
-                      )
-                    : ClipOval(
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                          ),
+                        ),
+                ),
+                SizedBox(width: 40.w),
+                GestureDetector(
+                  onTap: () async {
+                    await audioNotifier.interruptStreamingAudio();
+                  },
+                  child: ClipOval(
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      child: Container(
+                        width: 80.w,
+                        height: 80.h,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: state.$2
+                                ? [
+                                    Colors.orange.withValues(alpha: 0.4),
+                                    Colors.orange.withValues(alpha: 0.2),
+                                  ]
+                                : [
+                                    Colors.grey.withValues(alpha: 0.4),
+                                    Colors.grey.withValues(alpha: 0.2),
+                                  ],
+                          ),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.3),
+                            width: 2.w,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: (state.$2 ? Colors.orange : Colors.grey)
+                                  .withValues(alpha: 0.3),
+                              blurRadius: 20.r,
+                              spreadRadius: 2.r,
+                            ),
+                          ],
+                        ),
+                        child: Center(
                           child: Container(
-                            width: 80,
-                            height: 80,
+                            width: 60.w,
+                            height: 60.h,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: state.$2
-                                    ? [
-                                        Colors.green.withOpacity(0.4),
-                                        Colors.green.withOpacity(0.2),
-                                      ]
-                                    : [
-                                        Colors.grey.withOpacity(0.4),
-                                        Colors.grey.withOpacity(0.2),
-                                      ],
-                              ),
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.3),
-                                width: 2,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: (state.$2 ? Colors.green : Colors.grey)
-                                      .withOpacity(0.3),
-                                  blurRadius: 20,
-                                  spreadRadius: 2,
-                                ),
-                              ],
+                              color: state.$2
+                                  ? Colors.orange.withValues(alpha: 0.8)
+                                  : Colors.grey.withValues(alpha: 0.8),
                             ),
-                            child: Center(
-                              child: Container(
-                                width: 60,
-                                height: 60,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: state.$2
-                                      ? Colors.green.withOpacity(0.8)
-                                      : Colors.grey.withOpacity(0.8),
-                                ),
-                                child: Icon(
-                                  Icons.mic,
-                                  color: Colors.white,
-                                  size: 30,
-                                ),
-                              ),
+                            child: Icon(
+                              Icons.pause_presentation,
+                              color: Colors.white,
+                              size: 30.sp,
                             ),
-                          ),
-                        ),
-                      ),
-              ),
-              SizedBox(width: 40),
-              GestureDetector(
-                onTap: () async {
-                  await audioNotifier.interruptStreamingAudio();
-                },
-                child: ClipOval(
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                    child: Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: state.$2
-                              ? [
-                                  Colors.orange.withOpacity(0.4),
-                                  Colors.orange.withOpacity(0.2),
-                                ]
-                              : [
-                                  Colors.grey.withOpacity(0.4),
-                                  Colors.grey.withOpacity(0.2),
-                                ],
-                        ),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.3),
-                          width: 2,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: (state.$2 ? Colors.orange : Colors.grey)
-                                .withOpacity(0.3),
-                            blurRadius: 20,
-                            spreadRadius: 2,
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: Container(
-                          width: 60,
-                          height: 60,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: state.$2
-                                ? Colors.orange.withOpacity(0.8)
-                                : Colors.grey.withOpacity(0.8),
-                          ),
-                          child: Icon(
-                            Icons.pause_presentation,
-                            color: Colors.white,
-                            size: 30,
                           ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
-          ),
-        );
-      },
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 }

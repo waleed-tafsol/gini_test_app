@@ -1,7 +1,5 @@
-import 'dart:ui';
-
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 class EmbossedGlassButton extends StatefulWidget {
@@ -12,16 +10,16 @@ class EmbossedGlassButton extends StatefulWidget {
   final IconData? icon;
 
   const EmbossedGlassButton({
-    Key? key,
+    super.key,
     required this.text,
     required this.onPressed,
     this.width = 200,
     this.height = 60,
     this.icon,
-  }) : super(key: key);
+  });
 
   @override
-  _EmbossedGlassButtonState createState() => _EmbossedGlassButtonState();
+  State<EmbossedGlassButton> createState() => _EmbossedGlassButtonState();
 }
 
 class _EmbossedGlassButtonState extends State<EmbossedGlassButton> {
@@ -35,33 +33,31 @@ class _EmbossedGlassButtonState extends State<EmbossedGlassButton> {
       },
       child: AnimatedContainer(
         duration: Duration(milliseconds: 150),
-        width: widget.width,
-        height: widget.height,
+        width: widget.width.w,
+        height: widget.height.h,
         decoration: BoxDecoration(borderRadius: BorderRadius.circular(20)),
         child: LiquidGlassLayer(
-          settings: const LiquidGlassSettings(
-            thickness: 50,
+          settings: LiquidGlassSettings(
+            thickness: 50.w,
             glassColor: Color(0x1AFFFFFF),
             lightIntensity: 1,
           ),
           child: LiquidGlass(
-            shape: LiquidRoundedSuperellipse(
-              borderRadius: 50,
-            ),
+            shape: LiquidRoundedSuperellipse(borderRadius: 50.r),
             child: Center(
               child: widget.icon != null
                   ? Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(widget.icon, color: Colors.white, size: 22),
-                        SizedBox(width: 10),
+                        Icon(widget.icon, color: Colors.white, size: 22.sp),
+                        SizedBox(width: 10.w),
                         Text(
                           widget.text,
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 16,
+                            fontSize: 16.sp,
                             fontWeight: FontWeight.w600,
-                            letterSpacing: 0.5,
+                            letterSpacing: 0.5.w,
                           ),
                         ),
                       ],
@@ -70,9 +66,9 @@ class _EmbossedGlassButtonState extends State<EmbossedGlassButton> {
                       widget.text,
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 16,
+                        fontSize: 16.sp,
                         fontWeight: FontWeight.w600,
-                        letterSpacing: 0.5,
+                        letterSpacing: 0.5.w,
                       ),
                     ),
             ),

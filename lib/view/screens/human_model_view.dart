@@ -4,6 +4,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_3d_controller/flutter_3d_controller.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../view_model/notifiers/audio_notifier.dart';
 import '../widgets/bottom_button.dart';
@@ -177,8 +178,8 @@ class _HumanModelViewState extends State<HumanModelView> {
 
               // Control buttons overlay - top right
               Positioned(
-                top: MediaQuery.of(context).padding.top + 10,
-                right: 10,
+                top: MediaQuery.of(context).padding.top + 10.h,
+                right: 10.w,
                 child: RepaintBoundary(
                   child: _buildControlButtons(_humanModelController),
                 ),
@@ -190,7 +191,7 @@ class _HumanModelViewState extends State<HumanModelView> {
                 left: 0,
                 right: 0,
                 child: Padding(
-                  padding: const EdgeInsets.only(bottom: 30.0),
+                  padding: EdgeInsets.only(bottom: 30.0.h),
                   child: RepaintBoundary(child: BottomButton()),
                 ),
               ),
@@ -205,9 +206,9 @@ class _HumanModelViewState extends State<HumanModelView> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(25),
+        borderRadius: BorderRadius.circular(25.r),
       ),
-      padding: const EdgeInsets.all(8.0),
+      padding: EdgeInsets.all(8.0.w),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -218,7 +219,7 @@ class _HumanModelViewState extends State<HumanModelView> {
             icon: const Icon(Icons.play_arrow, color: Colors.white),
             tooltip: 'Play Animation',
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: 4.h),
           IconButton(
             onPressed: () {
               controller.pauseAnimation();
@@ -227,7 +228,7 @@ class _HumanModelViewState extends State<HumanModelView> {
             icon: const Icon(Icons.pause, color: Colors.white),
             tooltip: 'Pause Animation',
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: 4.h),
           IconButton(
             onPressed: () {
               controller.resetAnimation();
@@ -236,7 +237,7 @@ class _HumanModelViewState extends State<HumanModelView> {
             icon: const Icon(Icons.replay, color: Colors.white),
             tooltip: 'Reset Animation',
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: 4.h),
           IconButton(
             onPressed: () async {
               List<String> availableAnimations = await controller
@@ -261,7 +262,7 @@ class _HumanModelViewState extends State<HumanModelView> {
             ),
             tooltip: 'Select Animation',
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: 4.h),
           IconButton(
             onPressed: () async {
               List<String> availableTextures = await controller
@@ -279,7 +280,7 @@ class _HumanModelViewState extends State<HumanModelView> {
             icon: const Icon(Icons.list_alt_rounded, color: Colors.white),
             tooltip: 'Select Texture',
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: 4.h),
           IconButton(
             onPressed: () async {
               controller.startRotation(rotationSpeed: 30);
@@ -290,12 +291,12 @@ class _HumanModelViewState extends State<HumanModelView> {
           const SizedBox(height: 4),
           IconButton(
             onPressed: () {
-              controller.setCameraOrbit(20, 20, 5);
+              controller.setCameraOrbit(20.sp, 20.sp, 5.r);
             },
             icon: const Icon(Icons.camera_alt_outlined, color: Colors.white),
             tooltip: 'Set Camera Orbit',
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: 4.h),
           IconButton(
             onPressed: () {
               controller.resetCameraOrbit();
@@ -303,17 +304,17 @@ class _HumanModelViewState extends State<HumanModelView> {
             icon: const Icon(Icons.cameraswitch_outlined, color: Colors.white),
             tooltip: 'Reset Camera',
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: 4.h),
           IconButton(
             onPressed: () {
               setState(() {
                 // Reserved for future model switching
               });
             },
-            icon: const Icon(
+            icon: Icon(
               Icons.restore_page_outlined,
               color: Colors.white,
-              size: 30,
+              size: 30.sp,
             ),
             tooltip: 'Restore',
           ),
@@ -331,20 +332,20 @@ class _HumanModelViewState extends State<HumanModelView> {
       context: context,
       builder: (ctx) {
         return SizedBox(
-          height: 250,
+          height: 250.h,
           child: inputList.isEmpty
               ? Center(child: Text('$title list is empty'))
               : ListView.separated(
                   itemCount: inputList.length,
-                  padding: const EdgeInsets.only(top: 16),
+                  padding: EdgeInsets.only(top: 16.h),
                   itemBuilder: (ctx, index) {
                     return InkWell(
                       onTap: () {
                         Navigator.pop(context, inputList[index]);
                       },
                       child: Container(
-                        height: 50,
-                        padding: const EdgeInsets.all(16),
+                        height: 50.h,
+                        padding: EdgeInsets.all(16.w),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -361,11 +362,11 @@ class _HumanModelViewState extends State<HumanModelView> {
                     );
                   },
                   separatorBuilder: (ctx, index) {
-                    return const Divider(
+                    return Divider(
                       color: Colors.grey,
-                      thickness: 0.6,
-                      indent: 10,
-                      endIndent: 10,
+                      thickness: 0.6.w,
+                      indent: 10.w,
+                      endIndent: 10.w,
                     );
                   },
                 ),

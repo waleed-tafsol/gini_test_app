@@ -41,6 +41,7 @@ dependencies:
   get_it: ^9.2.0
   fluttertoast: ^9.0.0
   liquid_glass_renderer: ^0.2.0-dev.4
+  flutter_screenutil: ^5.9.3
 
 dev_dependencies:
   flutter_test:

@@ -3,10 +3,11 @@ import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:tafsol_genie_app/utils/enums.dart';
 
 import '../../utils/embossed_glass_button.dart';
+import '../../utils/enums.dart';
 import '../../view_model/notifiers/audio_notifier.dart';
 import '../widgets/animated_wrapper.dart';
 import 'audio_page.dart';
@@ -52,12 +53,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 builder: (context, ref, child) {
                   final state = ref.watch(audioProvider);
                   return Padding(
-                    padding: const EdgeInsets.all(20.0),
+                    padding: EdgeInsets.all(20.0.h),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        SizedBox(height: 40),
+                        SizedBox(height: 40.h),
                         // Huge circular connect button
                         Center(
                           child: AnimatedWrapper(
@@ -77,7 +78,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ),
                           ),
                         ),
-                        SizedBox(height: 40),
+                        SizedBox(height: 40.h),
                         if (state.isConnected)
                           AnimatedWrapper(
                             animationType: AnimationType.slideRight,
@@ -93,7 +94,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ),
                           ),
 
-                        const SizedBox(height: 20),
+                        SizedBox(height: 20.h),
                         // Message button
                         if (state.isConnected && state.sessionId.isNotEmpty)
                           AnimatedWrapper(
@@ -116,7 +117,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ),
                           ),
 
-                        const SizedBox(height: 20),
+                        SizedBox(height: 20.h),
 
                         // Human button
                         if (state.isConnected && state.sessionId.isNotEmpty)
@@ -170,7 +171,7 @@ class _CircularConnectButton extends StatefulWidget {
 class _CircularConnectButtonState extends State<_CircularConnectButton> {
   @override
   Widget build(BuildContext context) {
-    final size = 180.0; // Huge circular button size
+    final size = 180.0.h;
 
     return GestureDetector(
       onTap: () {
@@ -183,7 +184,7 @@ class _CircularConnectButtonState extends State<_CircularConnectButton> {
         decoration: BoxDecoration(shape: BoxShape.circle),
         child: LiquidGlassLayer(
           settings: LiquidGlassSettings(
-            thickness: 100,
+            thickness: 100.h,
             glassColor: Color(0x1AFFFFFF),
             lightIntensity: 1,
             // saturation: 1.2,
@@ -196,7 +197,7 @@ class _CircularConnectButtonState extends State<_CircularConnectButton> {
                     ? CupertinoIcons.bolt_fill
                     : CupertinoIcons.bolt_slash_fill,
                 color: Colors.white,
-                size: 80,
+                size: 80.sp,
               ),
             ),
           ),
