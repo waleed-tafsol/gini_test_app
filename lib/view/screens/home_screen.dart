@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tafsol_genie_app/utils/enums.dart';
@@ -151,7 +152,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   width: double.infinity,
                   height: 60,
                   child: ElevatedButton.icon(
-                    onPressed: state.isConnected && state.sessionId.isNotEmpty
+                    onPressed:
+                        state.isConnected &&
+                            (state.sessionId.isNotEmpty || kDebugMode)
                         ? () {
                             audioNotifier.setScreenType(ScreenType.message);
 
@@ -183,7 +186,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   width: double.infinity,
                   height: 60,
                   child: ElevatedButton.icon(
-                    onPressed: state.isConnected && state.sessionId.isNotEmpty
+                    onPressed:
+                        state.isConnected &&
+                            (state.sessionId.isNotEmpty || kDebugMode)
                         ? () {
                             audioNotifier.setScreenType(ScreenType.humanModel);
                             Navigator.push(

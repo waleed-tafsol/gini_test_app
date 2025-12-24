@@ -150,10 +150,10 @@ class AudioNotifier extends BaseNotifier<AudioState> {
         );
         debugPrint('✅ Buffer stream initialized for PCM16 playback');
       }
-      _recorder.init(
-        format: PCMFormat.s16le, // 16-bit PCM format
+      await _recorder.init(
+        format: PCMFormat.s16le,
         sampleRate: _sampleRate,
-        channels: RecorderChannels.mono, // Mono
+        channels: RecorderChannels.mono,
       );
       debugPrint('✅ Recorder initialized successfully');
     });
@@ -192,12 +192,12 @@ class AudioNotifier extends BaseNotifier<AudioState> {
           } else if (type == MessageType.ttsComplete) {
             debugPrint('✅ [WebSocket] Handling: tts_complete');
             _handelTTSComplete(message.data);
-          } else if (type == "streamed_response") {
+          } else if (type == MessageType.streamedResponse) {
             debugPrint(
               '📝 [WebSocket] Handling: streamed_response - ${message.data['response']}',
             );
             _handelStreamedResponse(message.data);
-          } else if (type == "final_transcript") {
+          } else if (type == MessageType.finalTranscript) {
             debugPrint(
               '💬 [WebSocket] Handling: final_transcript - ${message.data['text']}',
             );
@@ -447,7 +447,6 @@ class AudioNotifier extends BaseNotifier<AudioState> {
             // Get raw PCM16 data from the container
             // The data is already in the format specified during init (s16le)
             final audioData = audioDataContainer.rawData;
-
             // Send audio data to WebSocket
             final msgEvent = AudioMessageModel(
               sessionId: state.sessionId,
