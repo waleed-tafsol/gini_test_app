@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -85,12 +87,87 @@ class _BottomButtonState extends ConsumerState<BottomButton>
                     ? AnimatedBuilder(
                         animation: _pulseAnimation,
                         builder: (context, child) {
-                          return Container(
-                            width: 80 * _pulseAnimation.value,
-                            height: 80 * _pulseAnimation.value,
+                          return ClipOval(
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                              child: Container(
+                                width: 80 * _pulseAnimation.value,
+                                height: 80 * _pulseAnimation.value,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      Colors.red.withOpacity(0.4),
+                                      Colors.red.withOpacity(0.2),
+                                    ],
+                                  ),
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.3),
+                                    width: 2,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.red.withOpacity(0.3),
+                                      blurRadius: 20,
+                                      spreadRadius: 2,
+                                    ),
+                                  ],
+                                ),
+                                child: Center(
+                                  child: Container(
+                                    width: 60,
+                                    height: 60,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.red.withOpacity(0.8),
+                                    ),
+                                    child: Icon(
+                                      Icons.mic,
+                                      color: Colors.white,
+                                      size: 30,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      )
+                    : ClipOval(
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                          child: Container(
+                            width: 80,
+                            height: 80,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: Colors.red.withValues(alpha: 0.3),
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: state.$2
+                                    ? [
+                                        Colors.green.withOpacity(0.4),
+                                        Colors.green.withOpacity(0.2),
+                                      ]
+                                    : [
+                                        Colors.grey.withOpacity(0.4),
+                                        Colors.grey.withOpacity(0.2),
+                                      ],
+                              ),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.3),
+                                width: 2,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: (state.$2 ? Colors.green : Colors.grey)
+                                      .withOpacity(0.3),
+                                  blurRadius: 20,
+                                  spreadRadius: 2,
+                                ),
+                              ],
                             ),
                             child: Center(
                               child: Container(
@@ -98,7 +175,9 @@ class _BottomButtonState extends ConsumerState<BottomButton>
                                 height: 60,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: Colors.red,
+                                  color: state.$2
+                                      ? Colors.green.withOpacity(0.8)
+                                      : Colors.grey.withOpacity(0.8),
                                 ),
                                 child: Icon(
                                   Icons.mic,
@@ -106,31 +185,6 @@ class _BottomButtonState extends ConsumerState<BottomButton>
                                   size: 30,
                                 ),
                               ),
-                            ),
-                          );
-                        },
-                      )
-                    : Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: state.$2
-                              ? Colors.green.withValues(alpha: 0.3)
-                              : Colors.grey.withValues(alpha: 0.3),
-                        ),
-                        child: Center(
-                          child: Container(
-                            width: 60,
-                            height: 60,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: state.$2 ? Colors.green : Colors.grey,
-                            ),
-                            child: Icon(
-                              Icons.mic,
-                              color: Colors.white,
-                              size: 30,
                             ),
                           ),
                         ),
@@ -141,27 +195,56 @@ class _BottomButtonState extends ConsumerState<BottomButton>
                 onTap: () async {
                   await audioNotifier.interruptStreamingAudio();
                 },
-                child: Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: state.$2
-                        ? Colors.orange.withValues(alpha: 0.3)
-                        : Colors.grey.withValues(alpha: 0.3),
-                  ),
-                  child: Center(
+                child: ClipOval(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                     child: Container(
-                      width: 60,
-                      height: 60,
+                      width: 80,
+                      height: 80,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: state.$2 ? Colors.orange : Colors.grey,
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: state.$2
+                              ? [
+                                  Colors.orange.withOpacity(0.4),
+                                  Colors.orange.withOpacity(0.2),
+                                ]
+                              : [
+                                  Colors.grey.withOpacity(0.4),
+                                  Colors.grey.withOpacity(0.2),
+                                ],
+                        ),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.3),
+                          width: 2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: (state.$2 ? Colors.orange : Colors.grey)
+                                .withOpacity(0.3),
+                            blurRadius: 20,
+                            spreadRadius: 2,
+                          ),
+                        ],
                       ),
-                      child: Icon(
-                        Icons.pause_presentation,
-                        color: Colors.white,
-                        size: 30,
+                      child: Center(
+                        child: Container(
+                          width: 60,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: state.$2
+                                ? Colors.orange.withOpacity(0.8)
+                                : Colors.grey.withOpacity(0.8),
+                          ),
+                          child: Icon(
+                            Icons.pause_presentation,
+                            color: Colors.white,
+                            size: 30,
+                          ),
+                        ),
                       ),
                     ),
                   ),

@@ -1,9 +1,14 @@
-import 'package:flutter/foundation.dart';
+import 'dart:ui';
+
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:tafsol_genie_app/utils/enums.dart';
 
+import '../../utils/embossed_glass_button.dart';
 import '../../view_model/notifiers/audio_notifier.dart';
+import '../widgets/animated_wrapper.dart';
 import 'audio_page.dart';
 import 'human_model_view.dart';
 
@@ -15,6 +20,9 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  final GlobalKey<AnimatedWrapperState> _animationKey =
+      GlobalKey<AnimatedWrapperState>();
+
   @override
   void initState() {
     super.initState();
@@ -28,191 +36,171 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final audioNotifier = ref.read(audioProvider.notifier);
     return Scaffold(
-      appBar: AppBar(title: const Text('Home')),
-      body: Consumer(
-        builder: (context, ref, child) {
-          final state = ref.watch(audioProvider);
-          return Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Status display
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: state.isConnected
-                        ? Colors.green[50]
-                        : Colors.red[50],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: state.isConnected ? Colors.green : Colors.red,
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Status: ${state.statusMessage}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Container(
-                            width: 10,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: state.isConnected
-                                  ? Colors.green
-                                  : Colors.red,
+      //appBar: AppBar(title: const Text('Home')),
+      body: Stack(
+        children: [
+          Image.asset(
+            'assets/background.jpg',
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+          ),
+          ClipRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+              child: Consumer(
+                builder: (context, ref, child) {
+                  final state = ref.watch(audioProvider);
+                  return Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(height: 40),
+                        // Huge circular connect button
+                        Center(
+                          child: AnimatedWrapper(
+                            key: _animationKey,
+                            animationType: AnimationType.rotate,
+                            child: _CircularConnectButton(
+                              isConnected: state.isConnected,
+                              onPressed: () {
+                                // Trigger animation on press
+                                _animationKey.currentState?.play();
+                                if (state.isConnected) {
+                                  audioNotifier.disconnectWebSocket();
+                                } else {
+                                  audioNotifier.reconnect();
+                                }
+                              },
                             ),
                           ),
-                          SizedBox(width: 8),
-                          Text(
-                            state.isConnected ? 'Connected' : 'Disconnected',
-                            style: TextStyle(
-                              color: state.isConnected
-                                  ? Colors.green
-                                  : Colors.red,
+                        ),
+                        SizedBox(height: 40),
+                        if (state.isConnected)
+                          AnimatedWrapper(
+                            animationType: AnimationType.slideRight,
+                            duration: const Duration(seconds: 1),
+                            child: EmbossedGlassButton(
+                              text: 'Get Session ID',
+                              icon: CupertinoIcons
+                                  .arrow_right_arrow_left_square_fill,
+                              onPressed: () {
+                                audioNotifier.callSessionId();
+                              },
+                              width: double.infinity,
                             ),
                           ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
 
-                SizedBox(height: 20),
+                        const SizedBox(height: 20),
+                        // Message button
+                        if (state.isConnected && state.sessionId.isNotEmpty)
+                          AnimatedWrapper(
+                            animationType: AnimationType.slideRight,
+                            duration: const Duration(seconds: 2),
+                            child: EmbossedGlassButton(
+                              text: 'Message',
+                              icon: CupertinoIcons.chat_bubble_2_fill,
+                              onPressed: () {
+                                audioNotifier.setScreenType(ScreenType.message);
 
-                // Control buttons
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: state.isConnected
-                            ? null
-                            : () => audioNotifier.reconnect(),
-                        icon: Icon(Icons.wifi, size: 20),
-                        label: Text(
-                          state.isConnected ? 'Connected' : 'Reconnect',
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: state.isConnected
-                              ? Colors.green
-                              : Colors.blue,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 10),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: state.isConnected
-                            ? audioNotifier.disconnectWebSocket
-                            : null,
-                        icon: Icon(Icons.wifi_off, size: 20),
-                        label: Text('Disconnect'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const AudioPage(),
+                                  ),
+                                );
+                              },
+                              width: double.infinity,
+                            ),
+                          ),
 
-                SizedBox(height: 40),
-                SizedBox(
-                  width: double.infinity,
-                  height: 60,
-                  child: ElevatedButton.icon(
-                    onPressed: state.isConnected
-                        ? () {
-                            audioNotifier.callSessionId();
-                          }
-                        : null,
-                    icon: const Icon(Icons.message, size: 24),
-                    label: const Text(
-                      'Get Session ID',
-                      style: TextStyle(fontSize: 18),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: Colors.grey[300],
-                      disabledForegroundColor: Colors.grey[600],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                // Message button
-                SizedBox(
-                  width: double.infinity,
-                  height: 60,
-                  child: ElevatedButton.icon(
-                    onPressed:
-                        state.isConnected &&
-                            (state.sessionId.isNotEmpty || kDebugMode)
-                        ? () {
-                            audioNotifier.setScreenType(ScreenType.message);
+                        const SizedBox(height: 20),
 
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const AudioPage(),
-                              ),
-                            );
-                          }
-                        : null,
-                    icon: const Icon(Icons.message, size: 24),
-                    label: const Text(
-                      'Message',
-                      style: TextStyle(fontSize: 18),
+                        // Human button
+                        if (state.isConnected && state.sessionId.isNotEmpty)
+                          AnimatedWrapper(
+                            animationType: AnimationType.slideRight,
+                            duration: const Duration(seconds: 3),
+                            child: EmbossedGlassButton(
+                              text: 'Human',
+                              icon: Icons.person,
+                              onPressed: () {
+                                audioNotifier.setScreenType(
+                                  ScreenType.humanModel,
+                                );
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const HumanModelView(),
+                                  ),
+                                );
+                              },
+                              width: double.infinity,
+                            ),
+                          ),
+                      ],
                     ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: Colors.grey[300],
-                      disabledForegroundColor: Colors.grey[600],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Human button
-                SizedBox(
-                  width: double.infinity,
-                  height: 60,
-                  child: ElevatedButton.icon(
-                    onPressed:
-                        state.isConnected &&
-                            (state.sessionId.isNotEmpty || kDebugMode)
-                        ? () {
-                            audioNotifier.setScreenType(ScreenType.humanModel);
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const HumanModelView(),
-                              ),
-                            );
-                          }
-                        : null,
-                    icon: const Icon(Icons.person, size: 24),
-                    label: const Text('Human', style: TextStyle(fontSize: 18)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: Colors.grey[300],
-                      disabledForegroundColor: Colors.grey[600],
-                    ),
-                  ),
-                ),
-              ],
+                  );
+                },
+              ),
             ),
-          );
-        },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CircularConnectButton extends StatefulWidget {
+  final bool isConnected;
+  final VoidCallback onPressed;
+
+  const _CircularConnectButton({
+    required this.isConnected,
+    required this.onPressed,
+  });
+
+  @override
+  State<_CircularConnectButton> createState() => _CircularConnectButtonState();
+}
+
+class _CircularConnectButtonState extends State<_CircularConnectButton> {
+  @override
+  Widget build(BuildContext context) {
+    final size = 180.0; // Huge circular button size
+
+    return GestureDetector(
+      onTap: () {
+        widget.onPressed();
+      },
+      child: AnimatedContainer(
+        duration: Duration(milliseconds: 150),
+        width: size,
+        height: size,
+        decoration: BoxDecoration(shape: BoxShape.circle),
+        child: LiquidGlassLayer(
+          settings: LiquidGlassSettings(
+            thickness: 100,
+            glassColor: Color(0x1AFFFFFF),
+            lightIntensity: 1,
+            // saturation: 1.2,
+          ),
+          child: LiquidGlass(
+            shape: LiquidOval(),
+            child: Center(
+              child: Icon(
+                widget.isConnected
+                    ? CupertinoIcons.bolt_fill
+                    : CupertinoIcons.bolt_slash_fill,
+                color: Colors.white,
+                size: 80,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
