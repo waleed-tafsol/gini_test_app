@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 import '../../view_model/notifiers/audio_notifier.dart';
 import '../widgets/animated_wrapper.dart';
@@ -31,7 +32,7 @@ class _AudioPageState extends State<AudioPage> {
         children: [
           // Background image
           Image.asset(
-            'assets/background1.png',
+            'assets/background.jpg',
             fit: BoxFit.cover,
             width: double.infinity,
             height: double.infinity,
@@ -41,7 +42,7 @@ class _AudioPageState extends State<AudioPage> {
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
               child: Padding(
-                padding: const EdgeInsets.all(20.0),
+                padding: const EdgeInsets.all(10.0),
                 child: Stack(
                   children: [
                     Column(
@@ -63,19 +64,18 @@ class _AudioPageState extends State<AudioPage> {
                               return AnimatedWrapper(
                                 animationType: AnimationType.fadeIn,
                                 duration: const Duration(milliseconds: 500),
-                                child: ClipRect(
-                                  child: BackdropFilter(
-                                    filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-                                    child: Container(
-                                      padding: const EdgeInsets.all(16.0),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.3),
-                                        borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(
-                                          color: Colors.white.withOpacity(0.3),
-                                          width: 1.5,
-                                        ),
-                                      ),
+                                child: LiquidGlassLayer(
+                                  settings: const LiquidGlassSettings(
+                                    thickness: 50,
+                                    glassColor: Color(0x1AFFFFFF),
+                                    lightIntensity: 1,
+                                  ),
+                                  child: LiquidGlass(
+                                    shape: LiquidRoundedSuperellipse(
+                                      borderRadius: 50,
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 30.0,vertical: 20),
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
@@ -160,123 +160,108 @@ class _AudioPageState extends State<AudioPage> {
                                 final messages = ref.watch(
                                   audioProvider.select((state) => state.messages),
                                 );
-                                return ClipRect(
-                                  child: BackdropFilter(
-                                    filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-                                    child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Expanded(
-                                        child: messages.isEmpty
-                                            ? Center(
-                                          child: Text(
-                                            'No messages yet',
-                                            style: TextStyle(
-                                              color: Colors.white.withOpacity(0.7),
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                        )
-                                            : Builder(
-                                          builder: (context) {
-                                            // Show messages in normal order (oldest at top, newest at bottom)
-                                            return ListView.builder(
-                                              controller: _scrollController,
-                                              cacheExtent: 1000,
-                                              padding: EdgeInsets.symmetric(
-                                                horizontal: 16,
-                                                vertical: 12,
-                                              ),
-                                              itemCount: messages.length,
-                                              itemBuilder: (context, index) {
-                                                // index 0 = oldest message (at top), last index = latest (at bottom)
-                                                final message = messages[index];
-                                                final isUser = message.role == 'user';
-                                                final messageKey = 'msg_$index';
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                  child: messages.isEmpty
+                                      ? Center(
+                                    child: Text(
+                                      'No messages yet',
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.7),
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  )
+                                      : Builder(
+                                    builder: (context) {
+                                      // Show messages in normal order (oldest at top, newest at bottom)
+                                      return ListView.builder(
+                                        controller: _scrollController,
+                                        cacheExtent: 1000,
+                                        padding: EdgeInsets.symmetric(
+                                         // horizontal: 16,
+                                          vertical: 12,
+                                        ),
+                                        itemCount: messages.length,
+                                        itemBuilder: (context, index) {
+                                          // index 0 = oldest message (at top), last index = latest (at bottom)
+                                          final message = messages[index];
+                                          final isUser = message.role == 'user';
+                                          final messageKey = 'msg_$index';
 
-                                                return Padding(
-                                                  key: ValueKey(messageKey),
-                                                  padding: EdgeInsets.only(
-                                                    bottom: 12,
-                                                  ),
-                                                  child: Row(
-                                                    mainAxisAlignment: isUser
-                                                        ? MainAxisAlignment.start
-                                                        : MainAxisAlignment.end,
-                                                    crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                    children: [
-                                                      if (!isUser) Spacer(),
-                                                      Flexible(
-                                                        flex: 2,
-                                                        child: ClipRect(
-                                                          child: BackdropFilter(
-                                                            filter: ImageFilter.blur(
-                                                                sigmaX: 3, sigmaY: 3),
-                                                            child: Container(
-                                                              padding:
-                                                              EdgeInsets.symmetric(
-                                                                horizontal: 16,
-                                                                vertical: 12,
-                                                              ),
-                                                              decoration: BoxDecoration(
-                                                                color: isUser
-                                                                    ? Colors.blue
-                                                                    .withOpacity(0.3)
-                                                                    : Colors.green
-                                                                    .withOpacity(0.3),
-                                                                borderRadius:
-                                                                BorderRadius.circular(16),
-                                                                border: Border.all(
-                                                                  color: Colors.white
-                                                                      .withOpacity(0.3),
-                                                                  width: 1,
-                                                                ),
-                                                              ),
-                                                              child: Column(
-                                                                crossAxisAlignment:
-                                                                CrossAxisAlignment
-                                                                    .start,
-                                                                mainAxisSize:
-                                                                MainAxisSize.min,
-                                                                children: [
-                                                                  Text(
-                                                                    isUser ? 'You' : 'AI',
-                                                                    style: TextStyle(
-                                                                      fontSize: 11,
-                                                                      fontWeight:
-                                                                      FontWeight.w600,
-                                                                      color: Colors.white,
-                                                                      letterSpacing: 0.5,
-                                                                    ),
-                                                                  ),
-                                                                  SizedBox(height: 6),
-                                                                  Text(
-                                                                    message.content,
-                                                                    style: TextStyle(
-                                                                      fontSize: 14,
-                                                                      color: Colors.white,
-                                                                    ),
-                                                                  ),
-                                                                ],
+                                          return Padding(
+                                            key: ValueKey(messageKey),
+                                            padding: EdgeInsets.only(
+                                              bottom: 12,
+                                            ),
+                                            child: Row(
+                                              mainAxisAlignment: isUser
+                                                  ? MainAxisAlignment.start
+                                                  : MainAxisAlignment.end,
+                                              crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                              children: [
+                                                if (!isUser) Spacer(),
+                                                Flexible(
+                                                  flex: 2,
+                                                  child: LiquidGlassLayer(
+                                                    settings: LiquidGlassSettings(
+                                                      thickness: 30,
+                                                      // glassColor: isUser
+                                                      //     ? Color(0x4D0000FF) // Blue tint
+                                                      //     : Color(0x4D00FF00), // Green tint
+                                                      lightIntensity: 1,
+                                                    ),
+                                                    child: LiquidGlass(
+                                                      shape: LiquidRoundedSuperellipse(
+                                                        borderRadius: 40,
+                                                      ),
+                                                      child: Padding(
+                                                        padding: const EdgeInsets.symmetric(horizontal: 20,vertical: 10),
+                                                        child: Column(
+                                                          crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                          mainAxisSize:
+                                                          MainAxisSize.min,
+                                                          children: [
+                                                            Text(
+                                                              isUser ? 'You' : 'AI',
+                                                              style: TextStyle(
+                                                                fontSize: 11,
+                                                                fontWeight:
+                                                                FontWeight.w600,
+                                                                color: Colors.white,
+                                                                letterSpacing: 0.5,
                                                               ),
                                                             ),
-                                                          ),
+                                                            SizedBox(height: 6),
+                                                            Text(
+                                                              message.content,
+                                                              style: TextStyle(
+                                                                fontSize: 14,
+                                                                color: Colors.white,
+                                                              ),
+                                                            ),
+                                                          ],
                                                         ),
                                                       ),
-                                                      if (isUser) Spacer(),
-                                                    ],
+                                                    ),
                                                   ),
-                                                );
-                                              },
-                                            );
-                                          },
-                                        ),
-                                      ),
-                                    ],
+                                                ),
+                                                if (isUser) Spacer(),
+                                              ],
+                                            ),
+                                          );
+                                        },
+                                      );
+                                    },
                                   ),
-                                  ),
-                                );
+                                ),
+                                                                ],
+                                                              );
                               },
                             ),
                           ),
