@@ -21,7 +21,7 @@ class AudioState {
     this.statusMessage = 'Ready',
     this.streamedResponse,
     this.isConnected = false,
-    this.sessionId = 'ABC',
+    this.sessionId = 'ABCwww',
   });
 
   AudioState copyWith({

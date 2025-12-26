@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_recorder/flutter_recorder.dart';
@@ -99,6 +100,7 @@ class AudioNotifier extends BaseNotifier<AudioState> {
   Future<void> initializeApp() async {
     return await runSafely(() async {
       setStatusMessage = 'Initializing...';
+      
       final permissionResult = await _permissionHandler.requestPermissions();
 
       if (!permissionResult.isGranted) {
@@ -133,22 +135,25 @@ class AudioNotifier extends BaseNotifier<AudioState> {
     // Initialize SoLoud for audio playback
     return await runSafely(() async {
       if (!_soloudInitialized) {
-        await _soloud.init();
+        await _soloud.init(sampleRate: _sampleRate);
         _soloudInitialized = true;
-        debugPrint('✅ SoLoud initialized successfully');
+        debugPrint('✅ SoLoud initialized successfully with sample rate: $_sampleRate');
 
-        // Set up buffer stream for PCM16 playback (no WAV conversion needed!)
+        // Set global volume to maximum (important for iOS)
+        _soloud.setGlobalVolume(1.0);
+        debugPrint('🔊 Set global volume to 1.0');
+
+        // Set up buffer stream for PCM16 playback
+        // Use preserved buffering for streaming audio to maintain continuity
         _bufferStream = _soloud.setBufferStream(
-          maxBufferSizeBytes: 1024 * 1024 * 10,
-          // 10MB max buffer
-          bufferingType: BufferingType.preserved,
-          bufferingTimeNeeds: 0.1,
-          // 100ms buffer for real-time playback
+          maxBufferSizeBytes: 1024 * 1024 * 10, // 10MB max buffer
+          bufferingType: BufferingType.preserved, // Preserved for continuous streaming
+          bufferingTimeNeeds: 0.1, // 100ms buffer for real-time playback
           sampleRate: _sampleRate,
           channels: Channels.mono,
           format: BufferType.s16le, // Signed 16-bit PCM little endian
         );
-        debugPrint('✅ Buffer stream initialized for PCM16 playback');
+        debugPrint('✅ Buffer stream initialized for PCM16 playback (preserved buffering)');
       }
       await _recorder.init(
         format: PCMFormat.s16le,
@@ -259,41 +264,104 @@ class AudioNotifier extends BaseNotifier<AudioState> {
     return await runSafely(() async {
       // Dispose old buffer stream
       if (_bufferStream != null) {
-        await _soloud.disposeSource(_bufferStream!);
-        _bufferStream = null;
+        try {
+          await _soloud.disposeSource(_bufferStream!);
+          _bufferStream = null;
+          debugPrint('🗑️ Disposed old buffer stream');
+        } catch (e) {
+          debugPrint('⚠️ Error disposing buffer stream: $e');
+        }
       }
 
       // Create a new buffer stream
       _bufferStream = _soloud.setBufferStream(
-        maxBufferSizeBytes: 1024 * 1024 * 10,
-        // 10MB max buffer
-        bufferingType: BufferingType.preserved,
-        bufferingTimeNeeds: 0.1,
-        // 100ms buffer for real-time playback
+        maxBufferSizeBytes: 1024 * 1024 * 10, // 10MB max buffer
+        bufferingType: BufferingType.preserved, // Preserved for continuous streaming
+        bufferingTimeNeeds: 0.1, // 100ms buffer for real-time playback
         sampleRate: _sampleRate,
         channels: Channels.mono,
         format: BufferType.s16le, // Signed 16-bit PCM little endian
       );
+      _totalAudioBytes = 0; // Reset audio byte counter
       debugPrint('🔄 Reset buffer stream for new audio');
     });
   }
 
   Future<void> _playPcmChunk(Uint8List pcmData) async {
     return await runSafely(() async {
-      // Play PCM16 data directly using buffer stream (no WAVgi conversion needed!)
+      // Play PCM16 data directly using buffer stream (no WAV conversion needed!)
       if (_bufferStream == null) {
         debugPrint('⚠️ Buffer stream not initialized');
         return;
       }
 
-      // Start playing if not already playing
-      if (_streamHandle == null) {
-        _streamHandle = await _soloud.play(_bufferStream!);
-        debugPrint('📢 Started PCM16 stream playback, handle: $_streamHandle');
+      // Ensure SoLoud is initialized before playback
+      if (!_soloudInitialized) {
+        debugPrint('⚠️ SoLoud not initialized, initializing now...');
+        await _initializeAudio();
       }
 
-      // Add PCM16 data directly to the buffer stream (returns void, not awaitable)
-      _soloud.addAudioDataStream(_bufferStream!, pcmData);
+      // Start playing if not already playing
+      if (_streamHandle == null) {
+        try {
+          // Set global volume before playing (important for iOS)
+          _soloud.setGlobalVolume(1.0);
+          debugPrint('🔊 Set global volume to 1.0 before playback');
+          
+          // Start playback
+          _streamHandle = await _soloud.play(_bufferStream!);
+          debugPrint('📢 Started PCM16 stream playback, handle: $_streamHandle');
+          
+          // Set volume for the specific stream handle (important for iOS)
+          if (_streamHandle != null) {
+            _soloud.setVolume(_streamHandle!, 1.0);
+            debugPrint('🔊 Set playback volume to 1.0 for handle $_streamHandle');
+            
+            // Also set pan to center (mono audio)
+            _soloud.setPan(_streamHandle!, 0.0);
+            debugPrint('🎚️ Set pan to center (0.0) for mono audio');
+          }
+        } catch (e) {
+          debugPrint('❌ Error starting playback: $e');
+          // Try to reinitialize if playback fails
+          if (!_soloudInitialized) {
+            await _initializeAudio();
+            _soloud.setGlobalVolume(1.0);
+            _streamHandle = await _soloud.play(_bufferStream!);
+            if (_streamHandle != null) {
+              _soloud.setVolume(_streamHandle!, 1.0);
+              _soloud.setPan(_streamHandle!, 0.0);
+            }
+            debugPrint('📢 Retried playback after reinitialization');
+          }
+        }
+      }
+      
+      // Add PCM16 data directly to the buffer stream
+      try {
+        _soloud.addAudioDataStream(_bufferStream!, pcmData);
+        debugPrint('✅ Added ${pcmData.length} bytes to audio stream');
+      } catch (e) {
+        debugPrint('❌ Error adding audio data to stream: $e');
+        // If adding data fails, try to restart playback
+        try {
+          if (_streamHandle != null) {
+            await _soloud.stop(_streamHandle!);
+            _streamHandle = null;
+          }
+          _soloud.setGlobalVolume(1.0);
+          _streamHandle = await _soloud.play(_bufferStream!);
+          if (_streamHandle != null) {
+            _soloud.setVolume(_streamHandle!, 1.0);
+            _soloud.setPan(_streamHandle!, 0.0);
+            _soloud.addAudioDataStream(_bufferStream!, pcmData);
+            debugPrint('✅ Retried adding audio data after restarting playback');
+          }
+        } catch (retryError) {
+          debugPrint('❌ Error retrying audio data: $retryError');
+          return;
+        }
+      }
 
       // Track total audio bytes and calculate duration
       _totalAudioBytes += pcmData.length;
