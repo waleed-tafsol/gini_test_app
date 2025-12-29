@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
+import 'package:audio_session/audio_session.dart';
 import 'package:flutter_pcm_sound/flutter_pcm_sound.dart';
 import 'package:flutter_recorder/flutter_recorder.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,6 +26,7 @@ final audioProvider = NotifierProvider.autoDispose(() => AudioNotifier());
 class AudioNotifier extends BaseNotifier<AudioState> {
   final String _wsUrl = 'wss://genie-api-test.devcustomprojects.online/ws';
   late final WebSocketService _webSocketManager;
+  AudioSession? _audioSession;
   
   // Audio playback state
   bool _pcmSoundInitialized = false;
@@ -139,6 +141,34 @@ class AudioNotifier extends BaseNotifier<AudioState> {
 
   Future<void> _initializeAudio() async {
     return await runSafely(() async {
+      // Initialize and configure audio_session FIRST (before flutter_pcm_sound)
+      // This ensures our settings are applied before flutter_pcm_sound sets up
+      if (_audioSession == null) {
+        _audioSession = await AudioSession.instance;
+        await _audioSession!.configure(
+          AudioSessionConfiguration(
+            avAudioSessionCategory: AVAudioSessionCategory.playAndRecord,
+            avAudioSessionCategoryOptions: AVAudioSessionCategoryOptions.defaultToSpeaker |
+                AVAudioSessionCategoryOptions.allowBluetooth |
+                AVAudioSessionCategoryOptions.duckOthers,
+            avAudioSessionMode: AVAudioSessionMode.defaultMode,
+            avAudioSessionRouteSharingPolicy: AVAudioSessionRouteSharingPolicy.defaultPolicy,
+            avAudioSessionSetActiveOptions: AVAudioSessionSetActiveOptions.none,
+            androidAudioAttributes: const AndroidAudioAttributes(
+              contentType: AndroidAudioContentType.speech,
+              flags: AndroidAudioFlags.none,
+              usage: AndroidAudioUsage.voiceCommunication,
+            ),
+            androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
+            androidWillPauseWhenDucked: false,
+          ),
+        );
+        developer.log(
+          '✅ Audio session configured (before flutter_pcm_sound)',
+          name: 'AudioNotifier',
+        );
+      }
+      
       if (!_pcmSoundInitialized) {
         FlutterPcmSound.setLogLevel(LogLevel.verbose);
         
@@ -161,6 +191,33 @@ class AudioNotifier extends BaseNotifier<AudioState> {
         
         FlutterPcmSound.setFeedCallback(_onFeedCallback);
         _pcmSoundInitialized = true;
+        
+        // Reconfigure audio session AFTER flutter_pcm_sound setup
+        // This ensures our settings (especially defaultToSpeaker) take precedence
+        if (Platform.isIOS) {
+          await _audioSession!.configure(
+            AudioSessionConfiguration(
+              avAudioSessionCategory: AVAudioSessionCategory.playAndRecord,
+              avAudioSessionCategoryOptions: AVAudioSessionCategoryOptions.defaultToSpeaker |
+                  AVAudioSessionCategoryOptions.allowBluetooth |
+                  AVAudioSessionCategoryOptions.duckOthers,
+              avAudioSessionMode: AVAudioSessionMode.defaultMode,
+              avAudioSessionRouteSharingPolicy: AVAudioSessionRouteSharingPolicy.defaultPolicy,
+              avAudioSessionSetActiveOptions: AVAudioSessionSetActiveOptions.none,
+              androidAudioAttributes: const AndroidAudioAttributes(
+                contentType: AndroidAudioContentType.speech,
+                flags: AndroidAudioFlags.none,
+                usage: AndroidAudioUsage.voiceCommunication,
+              ),
+              androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
+              androidWillPauseWhenDucked: false,
+            ),
+          );
+          developer.log(
+            '✅ Audio session reconfigured after flutter_pcm_sound setup',
+            name: 'AudioNotifier',
+          );
+        }
       }
       
       await _recorder.init(
@@ -385,6 +442,50 @@ class AudioNotifier extends BaseNotifier<AudioState> {
           
           await Future.delayed(Duration(milliseconds: Platform.isIOS ? 100 : 50));
           
+          // Reconfigure audio session right before playback to ensure settings are applied
+          // This is critical because flutter_pcm_sound might have overwritten our settings
+          // Note: We don't call setActive here because flutter_pcm_sound will handle activation
+          if (_audioSession != null && Platform.isIOS) {
+            try {
+              // Reconfigure with defaultToSpeaker option (critical for iOS audio output)
+              await _audioSession!.configure(
+                AudioSessionConfiguration(
+                  avAudioSessionCategory: AVAudioSessionCategory.playAndRecord,
+                  avAudioSessionCategoryOptions: AVAudioSessionCategoryOptions.defaultToSpeaker |
+                      AVAudioSessionCategoryOptions.allowBluetooth |
+                      AVAudioSessionCategoryOptions.duckOthers,
+                  avAudioSessionMode: AVAudioSessionMode.defaultMode,
+                  avAudioSessionRouteSharingPolicy: AVAudioSessionRouteSharingPolicy.defaultPolicy,
+                  avAudioSessionSetActiveOptions: AVAudioSessionSetActiveOptions.none,
+                  androidAudioAttributes: const AndroidAudioAttributes(
+                    contentType: AndroidAudioContentType.speech,
+                    flags: AndroidAudioFlags.none,
+                    usage: AndroidAudioUsage.voiceCommunication,
+                  ),
+                  androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
+                  androidWillPauseWhenDucked: false,
+                ),
+              );
+              
+              developer.log(
+                '✅ Audio session reconfigured for playback (iOS) - flutter_pcm_sound will activate',
+                name: 'AudioNotifier',
+              );
+              
+              // Small delay to ensure configuration takes effect
+              await Future.delayed(Duration(milliseconds: 50));
+            } catch (e, stackTrace) {
+              developer.log(
+                '⚠️ Error reconfiguring audio session (continuing): $e',
+                name: 'AudioNotifier',
+                error: e,
+                stackTrace: stackTrace,
+              );
+              // Continue anyway - flutter_pcm_sound will handle activation
+            }
+          }
+          
+          // flutter_pcm_sound will activate the audio session when start() is called
           FlutterPcmSound.start();
           _startFallbackFeedTimer();
         } catch (e, stackTrace) {

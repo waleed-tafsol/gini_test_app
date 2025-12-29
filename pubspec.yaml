@@ -34,6 +34,7 @@ dependencies:
   permission_handler: ^12.0.1
   flutter_pcm_sound: ^3.3.3 # Real-time PCM audio playback
   flutter_recorder: ^1.1.2 # Audio recording package with better cross-platform support
+  audio_session: ^0.2.2 # Audio session management for iOS and Android
   flutter_3d_controller: ^2.3.0
   camera: ^0.11.3
   cupertino_icons: ^1.0.8
