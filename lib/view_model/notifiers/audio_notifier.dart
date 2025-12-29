@@ -257,11 +257,27 @@ class AudioNotifier extends BaseNotifier<AudioState> {
 
   Future<void> _handleWebSocketData(MessageData message) async {
     return await runSafely(() async {
+      // Log the full socket response
+      developer.log(
+        '📥 [Socket Response] Type: ${message.type}, Data: ${message.data}',
+        name: 'AudioNotifier',
+      );
+      
       final type = message.type;
-      if (type == null) return;
+      if (type == null) {
+        developer.log(
+          '⚠️ [Socket Response] Message type is null, data: ${message.data}',
+          name: 'AudioNotifier',
+        );
+        return;
+      }
 
       if (type == MessageType.sessionIdAcknowledged) {
         final sessionId = message.data['session_id'] as String?;
+        developer.log(
+          '🆔 [SessionIdAcknowledged] Session ID: ${sessionId ?? "null"}',
+          name: 'AudioNotifier',
+        );
         if (sessionId != null) setSessionId(sessionId);
         return;
       }
@@ -301,6 +317,11 @@ class AudioNotifier extends BaseNotifier<AudioState> {
   }
 
   void _handelAudioPcmReady(Map<String, dynamic> jsonData) {
+    developer.log(
+      '🎵 [AudioPcmReady] Received audio data, size: ${jsonData['pcm_data']?.toString().length ?? 0}',
+      name: 'AudioNotifier',
+    );
+    
     final pcmDataBase64 = jsonData['pcm_data'] as String?;
 
     if (pcmDataBase64 != null && pcmDataBase64.isNotEmpty) {
@@ -316,9 +337,8 @@ class AudioNotifier extends BaseNotifier<AudioState> {
   }
 
   void _stopCurrentPlayback() {
-    if (_isPlaying) {
-      _isPlaying = false;
-    }
+    // Stop playback immediately by setting flag and clearing queue
+    _isPlaying = false;
 
     _fallbackFeedTimer?.cancel();
     _fallbackFeedTimer = null;
@@ -326,6 +346,11 @@ class AudioNotifier extends BaseNotifier<AudioState> {
     _audioQueue.clear();
     _totalAudioBytes = 0;
     _lastCallbackTime = null;
+    
+    // Stop animation immediately
+    if (state.isAnimationPlaying) {
+      state = state.copyWith(isAnimationPlaying: false);
+    }
   }
 
   Future<void> _playPcmChunk(Uint8List pcmData) async {
@@ -389,30 +414,52 @@ class AudioNotifier extends BaseNotifier<AudioState> {
 
   void _handelStreamedResponse(Map<String, dynamic> jsonData) {
     final response = jsonData['response'] as String?;
+    developer.log(
+      '💬 [StreamedResponse] Response: ${response ?? "null"}',
+      name: 'AudioNotifier',
+    );
     if (response != null && response.isNotEmpty) {
       Future.microtask(() => _appendStreamedResponse(response));
     }
   }
 
   void _handelFinalTranscript(Map<String, dynamic> jsonData) {
-    addMessage(AiChatMessages(role: 'user', content: jsonData['text']));
+    final text = jsonData['text'] as String?;
+    developer.log(
+      '📝 [FinalTranscript] Text: ${text ?? "null"}',
+      name: 'AudioNotifier',
+    );
+    if (text != null) {
+      addMessage(AiChatMessages(role: 'user', content: text));
+    }
   }
 
   void _handelTTSComplete(Map<String, dynamic> jsonData) {
-    if (jsonData['full_response'] == '') {
+    final fullResponse = jsonData['full_response'] as String?;
+    developer.log(
+      '✅ [TTSComplete] Full response: ${fullResponse ?? "null"}',
+      name: 'AudioNotifier',
+    );
+    if (fullResponse == null || fullResponse.isEmpty) {
       addMessage(AiChatMessages(role: 'ai', content: 'Interrupted'));
     } else {
-      addMessage(
-        AiChatMessages(role: 'ai', content: jsonData['full_response']),
-      );
+      addMessage(AiChatMessages(role: 'ai', content: fullResponse));
     }
   }
 
   void _handelSessionStarted(Map<String, dynamic> jsonData) {
+    developer.log(
+      '🚀 [SessionStarted] Session started, data: $jsonData',
+      name: 'AudioNotifier',
+    );
     setStatusMessage = 'Session started - Ready to stream';
   }
 
   void _handelInterruptAcknowledged() {
+    developer.log(
+      '⏹️ [InterruptAcknowledged] Interrupt acknowledged by server',
+      name: 'AudioNotifier',
+    );
     _recorder.stopStreamingData();
     state = state.copyWith(isStreamingData: false);
     _audioInputSubscription?.cancel();

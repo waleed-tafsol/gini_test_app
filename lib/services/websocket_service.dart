@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -36,25 +37,39 @@ class WebSocketService {
         (data) {
           // Log all received websocket data
           if (data is String) {
-            debugPrint(
-              '📥 [WebSocket] Received: ${data.length > 200 ? data.substring(0, 200) + "..." : data}',
-            );
-          } else {
-            debugPrint(
-              '📥 [WebSocket] Received binary data: ${data.runtimeType}, size: ${data is List ? data.length : "unknown"}',
-            );
-          }
-
-          if (onDataReceived != null) {
-            if (data == null) return;
-            if (data.isEmpty) return;
-            if (data is String) {
-              onDataReceived!(MessageData.fromJson(jsonDecode(data)));
-            } else {
-              debugPrint(
-                '⚠️ [WebSocket] Received non-string data: ${data.runtimeType}',
+            try {
+              final decoded = jsonDecode(data);
+              developer.log(
+                '📥 [WebSocket] Received JSON: ${jsonEncode(decoded)}',
+                name: 'WebSocketService',
               );
+              
+              if (onDataReceived != null) {
+                onDataReceived!(MessageData.fromJson(decoded));
+              }
+            } catch (e) {
+              developer.log(
+                '📥 [WebSocket] Received (raw): ${data.length > 500 ? data.substring(0, 500) + "..." : data}',
+                name: 'WebSocketService',
+              );
+              
+              if (onDataReceived != null && data.isNotEmpty) {
+                try {
+                  onDataReceived!(MessageData.fromJson(jsonDecode(data)));
+                } catch (parseError) {
+                  developer.log(
+                    '❌ [WebSocket] Failed to parse message: $parseError',
+                    name: 'WebSocketService',
+                    error: parseError,
+                  );
+                }
+              }
             }
+          } else {
+            developer.log(
+              '📥 [WebSocket] Received binary data: ${data.runtimeType}, size: ${data is List ? data.length : "unknown"}',
+              name: 'WebSocketService',
+            );
           }
         },
         onError: (error) {
@@ -94,23 +109,40 @@ class WebSocketService {
       try {
         // Log all sent websocket data
         if (data is String) {
-          debugPrint(
-            '📤 [WebSocket] Sending: ${data.length > 200 ? data.substring(0, 200) + "..." : data}',
-          );
+          try {
+            final decoded = jsonDecode(data);
+            developer.log(
+              '📤 [WebSocket] Sending JSON: ${jsonEncode(decoded)}',
+              name: 'WebSocketService',
+            );
+          } catch (e) {
+            developer.log(
+              '📤 [WebSocket] Sending (raw): ${data.length > 500 ? data.substring(0, 500) + "..." : data}',
+              name: 'WebSocketService',
+            );
+          }
         } else {
-          debugPrint('📤 [WebSocket] Sending binary data: ${data.runtimeType}');
+          developer.log(
+            '📤 [WebSocket] Sending binary data: ${data.runtimeType}',
+            name: 'WebSocketService',
+          );
         }
 
         _channel!.sink.add(data);
       } catch (e) {
-        debugPrint('❌ [WebSocket] Error sending data: $e');
+        developer.log(
+          '❌ [WebSocket] Error sending data: $e',
+          name: 'WebSocketService',
+          error: e,
+        );
         if (onError != null) {
           onError!(e);
         }
       }
     } else {
-      debugPrint(
+      developer.log(
         '⚠️ [WebSocket] Cannot send: channel=${_channel != null}, connected=$_isConnected',
+        name: 'WebSocketService',
       );
     }
   }
