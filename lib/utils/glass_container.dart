@@ -1,0 +1,111 @@
+import 'dart:ui';
+import 'package:flutter/material.dart';
+
+class GlassContainer extends StatelessWidget {
+  final Widget child;
+  final BorderRadius? borderRadius;
+  final BoxShape? shape;
+  final Gradient? gradient;
+  final Gradient? borderGradient;
+  final double blur;
+  final double borderWidth;
+  final bool isFrostedGlass;
+  final double frostedOpacity;
+  final Color? shadowColor;
+  final double? elevation;
+  final Alignment? alignment;
+
+  const GlassContainer({
+    super.key,
+    required this.child,
+    this.borderRadius,
+    this.shape,
+    this.gradient,
+    this.borderGradient,
+    this.blur = 15.0,
+    this.borderWidth = 1.0,
+    this.isFrostedGlass = true,
+    this.frostedOpacity = 0.12,
+    this.shadowColor,
+    this.elevation,
+    this.alignment,
+  }) : assert(
+          shape == null || borderRadius == null,
+          'Cannot provide both shape and borderRadius',
+        );
+
+  @override
+  Widget build(BuildContext context) {
+    final decoration = BoxDecoration(
+      borderRadius: shape == BoxShape.circle ? null : (borderRadius ?? BorderRadius.zero),
+      shape: shape ?? BoxShape.rectangle,
+      gradient: gradient ??
+          LinearGradient(
+            colors: [
+              Colors.white.withOpacity(0.40),
+              Colors.white.withOpacity(0.10),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+      border: borderGradient != null
+          ? Border.all(
+              width: borderWidth,
+              color: Colors.transparent,
+            )
+          : Border.all(
+              width: borderWidth,
+              color: Colors.white.withOpacity(0.3),
+            ),
+      boxShadow: elevation != null && elevation! > 0
+          ? [
+              BoxShadow(
+                color: (shadowColor ?? Colors.black).withOpacity(0.2),
+                blurRadius: elevation! * 2,
+                spreadRadius: 0,
+              ),
+            ]
+          : null,
+    );
+
+    return Container(
+      decoration: borderGradient != null
+          ? BoxDecoration(
+              borderRadius: shape == BoxShape.circle
+                  ? BorderRadius.circular(1000)
+                  : (borderRadius ?? BorderRadius.zero),
+              gradient: borderGradient,
+            )
+          : null,
+      padding: borderGradient != null ? EdgeInsets.all(borderWidth) : null,
+      child: Container(
+        decoration: decoration,
+        child: ClipRRect(
+          borderRadius: shape == BoxShape.circle
+              ? BorderRadius.circular(1000)
+              : (borderRadius ?? BorderRadius.zero),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+            child: Container(
+              decoration: isFrostedGlass
+                  ? BoxDecoration(
+                      color: Colors.white.withOpacity(frostedOpacity),
+                      borderRadius: shape == BoxShape.circle
+                          ? BorderRadius.circular(1000)
+                          : (borderRadius ?? BorderRadius.zero),
+                    )
+                  : null,
+              child: alignment != null
+                  ? Align(
+                      alignment: alignment!,
+                      child: child,
+                    )
+                  : child,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+

@@ -9,16 +9,13 @@ PODS:
   - flutter_inappwebview_ios/Core (0.0.1):
     - Flutter
     - OrderedSet (~> 6.0.3)
-  - flutter_recorder (0.0.1):
+  - flutter_pcm_sound (0.0.1):
     - Flutter
-  - flutter_soloud (0.0.1):
+  - flutter_recorder (0.0.1):
     - Flutter
   - fluttertoast (0.0.2):
     - Flutter
   - OrderedSet (6.0.3)
-  - path_provider_foundation (0.0.1):
-    - Flutter
-    - FlutterMacOS
   - permission_handler_apple (9.3.0):
     - Flutter
 
@@ -26,10 +23,9 @@ DEPENDENCIES:
   - camera_avfoundation (from `.symlinks/plugins/camera_avfoundation/ios`)
   - Flutter (from `Flutter`)
   - flutter_inappwebview_ios (from `.symlinks/plugins/flutter_inappwebview_ios/ios`)
+  - flutter_pcm_sound (from `.symlinks/plugins/flutter_pcm_sound/ios`)
   - flutter_recorder (from `.symlinks/plugins/flutter_recorder/ios`)
-  - flutter_soloud (from `.symlinks/plugins/flutter_soloud/ios`)
   - fluttertoast (from `.symlinks/plugins/fluttertoast/ios`)
-  - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
   - permission_handler_apple (from `.symlinks/plugins/permission_handler_apple/ios`)
 
 SPEC REPOS:
@@ -43,14 +39,12 @@ EXTERNAL SOURCES:
     :path: Flutter
   flutter_inappwebview_ios:
     :path: ".symlinks/plugins/flutter_inappwebview_ios/ios"
+  flutter_pcm_sound:
+    :path: ".symlinks/plugins/flutter_pcm_sound/ios"
   flutter_recorder:
     :path: ".symlinks/plugins/flutter_recorder/ios"
-  flutter_soloud:
-    :path: ".symlinks/plugins/flutter_soloud/ios"
   fluttertoast:
     :path: ".symlinks/plugins/fluttertoast/ios"
-  path_provider_foundation:
-    :path: ".symlinks/plugins/path_provider_foundation/darwin"
   permission_handler_apple:
     :path: ".symlinks/plugins/permission_handler_apple/ios"
 
@@ -58,11 +52,10 @@ SPEC CHECKSUMS:
   camera_avfoundation: 5675ca25298b6f81fa0a325188e7df62cc217741
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   flutter_inappwebview_ios: b89ba3482b96fb25e00c967aae065701b66e9b99
+  flutter_pcm_sound: e9c2f6ce580eefcab2af46763f0354484d5c4ac8
   flutter_recorder: f976cf27301f5ba68959c7e87a3e4c8c1ccd4e8d
-  flutter_soloud: 272cc604453b6ca135f274045fb259e7c6426122
   fluttertoast: 2c67e14dce98bbdb200df9e1acf610d7a6264ea1
   OrderedSet: e539b66b644ff081c73a262d24ad552a69be3a94
-  path_provider_foundation: bb55f6dbba17d0dccd6737fe6f7f34fbd0376880
   permission_handler_apple: 4ed2196e43d0651e8ff7ca3483a069d469701f2d
 
 PODFILE CHECKSUM: 6255ac751aa09d883f80b181e1608e181ffbaef3

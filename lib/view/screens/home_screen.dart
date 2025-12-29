@@ -4,10 +4,11 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import '../../utils/glass_container.dart';
 
 import '../../utils/embossed_glass_button.dart';
 import '../../utils/enums.dart';
+import '../../utils/screen_util_helper.dart';
 import '../../view_model/notifiers/audio_notifier.dart';
 import '../widgets/animated_wrapper.dart';
 import 'audio_page.dart';
@@ -40,16 +41,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       //appBar: AppBar(title: const Text('Home')),
       body: Stack(
         children: [
-          Image.asset(
-            'assets/background.jpg',
-            fit: BoxFit.cover,
-            width: double.infinity,
-            height: double.infinity,
+          Positioned.fill(
+            child: Image.asset(
+              'assets/background.jpg',
+              fit: BoxFit.cover,
+            ),
           ),
-          ClipRect(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-              child: Consumer(
+          Positioned.fill(
+            child: ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                child: Consumer(
                 builder: (context, ref, child) {
                   final state = ref.watch(audioProvider);
                   return Padding(
@@ -148,6 +150,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 },
               ),
             ),
+            ),
           ),
         ],
       ),
@@ -171,36 +174,78 @@ class _CircularConnectButton extends StatefulWidget {
 class _CircularConnectButtonState extends State<_CircularConnectButton> {
   @override
   Widget build(BuildContext context) {
-    final size = 180.0.h;
+    final size = ScreenUtilHelper.safeHeight(180.0, 180.0);
+    final safeSize = size.isFinite && size > 0 ? size : 180.0;
 
     return GestureDetector(
       onTap: () {
         widget.onPressed();
       },
-      child: AnimatedContainer(
-        duration: Duration(milliseconds: 150),
-        width: size,
-        height: size,
-        decoration: BoxDecoration(shape: BoxShape.circle),
-        child: LiquidGlassLayer(
-          settings: LiquidGlassSettings(
-            thickness: 100.h,
-            glassColor: Color(0x1AFFFFFF),
-            lightIntensity: 1,
-            // saturation: 1.2,
-          ),
-          child: LiquidGlass(
-            shape: LiquidOval(),
-            child: Center(
-              child: Icon(
-                widget.isConnected
-                    ? CupertinoIcons.bolt_fill
-                    : CupertinoIcons.bolt_slash_fill,
-                color: Colors.white,
-                size: 80.sp,
+      child: SizedBox(
+        width: safeSize,
+        height: safeSize,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Ensure constraints are valid before building GlassContainer
+            if (!constraints.maxWidth.isFinite || 
+                !constraints.maxHeight.isFinite ||
+                constraints.maxWidth <= 0 ||
+                constraints.maxHeight <= 0) {
+              return Container(
+                width: safeSize,
+                height: safeSize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.1),
+                ),
+                child: Center(
+                  child: Icon(
+                    widget.isConnected
+                        ? CupertinoIcons.bolt_fill
+                        : CupertinoIcons.bolt_slash_fill,
+                    color: Colors.white,
+                    size: 80.0,
+                  ),
+                ),
+              );
+            }
+            
+            return GlassContainer(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [
+                  Colors.white.withOpacity(0.40),
+                  Colors.white.withOpacity(0.10),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-            ),
-          ),
+              borderGradient: LinearGradient(
+                colors: [
+                  Colors.white.withOpacity(0.60),
+                  Colors.white.withOpacity(0.10),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              blur: 15,
+              borderWidth: 1.0,
+              elevation: 3.0,
+              isFrostedGlass: true,
+              shadowColor: Colors.black.withOpacity(0.20),
+              alignment: Alignment.center,
+              frostedOpacity: 0.12,
+              child: Center(
+                child: Icon(
+                  widget.isConnected
+                      ? CupertinoIcons.bolt_fill
+                      : CupertinoIcons.bolt_slash_fill,
+                  color: Colors.white,
+                  size: ScreenUtilHelper.safeFontSize(80.0, 80.0),
+                ),
+              ),
+            );
+          },
         ),
       ),
     );

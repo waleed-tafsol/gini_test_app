@@ -3,8 +3,9 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import '../../utils/glass_container.dart';
 
+import '../../utils/screen_util_helper.dart';
 import '../../view_model/notifiers/audio_notifier.dart';
 import '../widgets/animated_wrapper.dart';
 import '../widgets/bottom_button.dart';
@@ -31,26 +32,29 @@ class _AudioPageState extends State<AudioPage> {
       body: Stack(
         children: [
           // Background image
-          Image.asset(
-            'assets/background.jpg',
-            fit: BoxFit.cover,
-            width: double.infinity,
-            height: double.infinity,
+          Positioned.fill(
+            child: Image.asset(
+              'assets/background.jpg',
+              fit: BoxFit.cover,
+            ),
           ),
           // Backdrop filter with blur
-          ClipRect(
+          Positioned.fill(
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  vertical: 10.0.h,
-                  horizontal: 20.w,
-                ),
-                child: Stack(
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
+              child: SizedBox.expand(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    vertical: 10.0.h,
+                    horizontal: 20.w,
+                  ),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return Stack(
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
                         // Player Status Card - Use Selector to only rebuild when status changes
                         _buildPlayerStatusCard(),
                         SizedBox(height: 20.h),
@@ -118,20 +122,31 @@ class _AudioPageState extends State<AudioPage> {
                                                           if (!isUser) Spacer(),
                                                           Flexible(
                                                             flex: 2,
-                                                            child: LiquidGlassLayer(
-                                                              settings: LiquidGlassSettings(
-                                                                thickness: 30.r,
-                                                                // glassColor: isUser
-                                                                //     ? Color(0x4D0000FF) // Blue tint
-                                                                //     : Color(0x4D00FF00), // Green tint
-                                                                lightIntensity:
-                                                                    1,
-                                                              ),
-                                                              child: LiquidGlass(
-                                                                shape: LiquidRoundedSuperellipse(
-                                                                  borderRadius:
-                                                                      40.r,
+                                                            child: IntrinsicHeight(
+                                                              child: GlassContainer(
+                                                                borderRadius: BorderRadius.circular(
+                                                                  ScreenUtilHelper.safeRadius(40.0, 40.0),
                                                                 ),
+                                                                gradient: LinearGradient(
+                                                                  colors: [
+                                                                    Colors.white.withOpacity(0.40),
+                                                                    Colors.white.withOpacity(0.10),
+                                                                  ],
+                                                                  begin: Alignment.topLeft,
+                                                                  end: Alignment.bottomRight,
+                                                                ),
+                                                                borderGradient: LinearGradient(
+                                                                  colors: [
+                                                                    Colors.white.withOpacity(0.60),
+                                                                    Colors.white.withOpacity(0.10),
+                                                                  ],
+                                                                  begin: Alignment.topLeft,
+                                                                  end: Alignment.bottomRight,
+                                                                ),
+                                                                blur: 15,
+                                                                borderWidth: 1.0,
+                                                                isFrostedGlass: true,
+                                                                frostedOpacity: 0.12,
                                                                 child: Padding(
                                                                   padding: EdgeInsets.symmetric(
                                                                     horizontal:
@@ -197,13 +212,21 @@ class _AudioPageState extends State<AudioPage> {
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                    RepaintBoundary(child: BottomButton()),
-                  ],
-                ),
+                            ],
+                          ),
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            child: RepaintBoundary(child: BottomButton()),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
               ),
             ),
+          ),
           ),
         ],
       ),
@@ -226,14 +249,31 @@ class _AudioPageState extends State<AudioPage> {
             return AnimatedWrapper(
               animationType: AnimationType.fadeIn,
               duration: const Duration(milliseconds: 500),
-              child: LiquidGlassLayer(
-                settings: LiquidGlassSettings(
-                  thickness: 50.r,
-                  glassColor: Color(0x1AFFFFFF),
-                  lightIntensity: 1,
-                ),
-                child: LiquidGlass(
-                  shape: LiquidRoundedSuperellipse(borderRadius: 50.r),
+              child: IntrinsicHeight(
+                child: GlassContainer(
+                  borderRadius: BorderRadius.circular(
+                    ScreenUtilHelper.safeRadius(50.0, 50.0),
+                  ),
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.white.withOpacity(0.40),
+                      Colors.white.withOpacity(0.10),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderGradient: LinearGradient(
+                    colors: [
+                      Colors.white.withOpacity(0.60),
+                      Colors.white.withOpacity(0.10),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  blur: 15,
+                  borderWidth: 1.0,
+                  isFrostedGlass: true,
+                  frostedOpacity: 0.12,
                   child: Padding(
                     padding: EdgeInsets.symmetric(
                       horizontal: 30.0.w,
