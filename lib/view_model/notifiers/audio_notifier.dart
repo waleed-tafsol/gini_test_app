@@ -50,8 +50,6 @@ class AudioNotifier extends BaseNotifier<AudioState> {
   Function(UIEvent)? _uiEventHandler;
   
   static const int _sampleRate = 16000;
-  static const int _iosChunksToPreFeed = 5;
-  static const int _androidChunksToPreFeed = 1;
 
   AudioNotifier() : super(AudioState()) {
     _webSocketManager = WebSocketService(
@@ -245,13 +243,30 @@ class AudioNotifier extends BaseNotifier<AudioState> {
   }
   
   Future<void> _feedAudioData(Uint8List pcmData) async {
+    // Don't feed if not playing or not initialized
+    if (!_isPlaying || !_pcmSoundInitialized) {
+      return;
+    }
+    
     try {
       final int16List = pcmData.buffer.asInt16List();
       if (int16List.isNotEmpty) {
         final pcmArray = PcmArrayInt16.fromList(int16List.toList());
         await FlutterPcmSound.feed(pcmArray).onError((err, stackTrace) {
-          developer.log('FlutterPcmSound.feed error: $err',
-              error: err, stackTrace: stackTrace);
+          // OSStatus -66628 (kAudioUnitErr_CannotDoInCurrentContext) means audio unit is not ready
+          // OSStatus -50 (kAudio_ParamError) means parameter error - audio unit might not be initialized
+          final errStr = err.toString();
+          if (errStr.contains('-66628') || errStr.contains('-50') || errStr.contains('AudioUnitError')) {
+            developer.log(
+              '⚠️ FlutterPcmSound.feed error (audio unit not ready): $err',
+              name: 'AudioNotifier',
+            );
+            // Don't stop playing immediately - might recover on next chunk
+            // Only stop if we get multiple errors
+          } else {
+            developer.log('FlutterPcmSound.feed error: $err',
+                error: err, stackTrace: stackTrace);
+          }
         });
       }
     } catch (e, stackTrace) {
@@ -264,9 +279,10 @@ class AudioNotifier extends BaseNotifier<AudioState> {
     _fallbackTimerStartTime = DateTime.now();
     _lastCallbackTime = null;
     
-    final interval = Platform.isIOS ? 50 : 100;
-    final callbackTimeout = Platform.isIOS ? 200 : 500;
-    final waitTime = Platform.isIOS ? 150 : 300;
+    // Very aggressive intervals for real-time feeding
+    final interval = Platform.isIOS ? 10 : 15; // Very frequent checks
+    final callbackTimeout = Platform.isIOS ? 30 : 50; // Very short timeout
+    final waitTime = Platform.isIOS ? 20 : 30; // Very short wait
     
     _fallbackFeedTimer = Timer.periodic(Duration(milliseconds: interval), (timer) {
       if (!_isPlaying || _audioQueue.isEmpty) {
@@ -291,9 +307,9 @@ class AudioNotifier extends BaseNotifier<AudioState> {
       }
     });
     
-    // iOS: Feed immediately after delay if callback hasn't fired
-    if (Platform.isIOS && _audioQueue.isNotEmpty) {
-      Future.delayed(Duration(milliseconds: 150), () {
+    // Feed immediately if callback hasn't fired (very short delay for real-time)
+    if (_audioQueue.isNotEmpty) {
+      Future.delayed(Duration(milliseconds: Platform.isIOS ? 10 : 15), () {
         if (_isPlaying && _audioQueue.isNotEmpty && _lastCallbackTime == null) {
           _feedFromQueue();
         }
@@ -304,8 +320,15 @@ class AudioNotifier extends BaseNotifier<AudioState> {
   Future<void> _feedFromQueue() async {
     if (!_isPlaying || _audioQueue.isEmpty) return;
     
-    final pcmData = _audioQueue.removeFirst();
-    await _feedAudioData(pcmData);
+    // Feed multiple chunks if available for smoother playback
+    int chunksFed = 0;
+    final maxChunksPerFeed = Platform.isIOS ? 2 : 1;
+    
+    while (_isPlaying && _audioQueue.isNotEmpty && chunksFed < maxChunksPerFeed) {
+      final pcmData = _audioQueue.removeFirst();
+      await _feedAudioData(pcmData);
+      chunksFed++;
+    }
   }
 
   void addMessage(AiChatMessages message) {
@@ -382,8 +405,7 @@ class AudioNotifier extends BaseNotifier<AudioState> {
     final pcmDataBase64 = jsonData['pcm_data'] as String?;
 
     if (pcmDataBase64 != null && pcmDataBase64.isNotEmpty) {
-      _stopCurrentPlayback();
-
+      // Don't stop current playback - just add new chunk to queue for continuous playback
       compute(base64Decode, pcmDataBase64)
           .then((pcmData) => _playPcmChunk(pcmData))
           .catchError((e, stackTrace) {
@@ -393,7 +415,10 @@ class AudioNotifier extends BaseNotifier<AudioState> {
     }
   }
 
-  void _stopCurrentPlayback() {
+  void _stopCurrentPlayback({bool silent = false}) {
+    // Only log if there was actually playback happening
+    final wasPlaying = _isPlaying || _audioQueue.isNotEmpty || state.isAnimationPlaying;
+    
     // Stop playback immediately by setting flag and clearing queue
     _isPlaying = false;
 
@@ -404,9 +429,23 @@ class AudioNotifier extends BaseNotifier<AudioState> {
     _totalAudioBytes = 0;
     _lastCallbackTime = null;
     
+    // Note: We don't release FlutterPcmSound here because:
+    // 1. It causes OSStatus -66628 errors when trying to feed data after release
+    // 2. Stopping data feed and clearing queue is sufficient to stop playback
+    // 3. The audio will stop naturally when the buffer empties
+    // If we need to release, it should be done in dispose() only
+    
     // Stop animation immediately
     if (state.isAnimationPlaying) {
       state = state.copyWith(isAnimationPlaying: false);
+    }
+    
+    // Only log if there was actual playback and not silent mode
+    if (wasPlaying && !silent) {
+      developer.log(
+        '🛑 Audio playback stopped (queue cleared, feeding stopped)',
+        name: 'AudioNotifier',
+      );
     }
   }
 
@@ -416,38 +455,21 @@ class AudioNotifier extends BaseNotifier<AudioState> {
         await _initializeAudio();
       }
 
+      // Add chunk to queue first
       _audioQueue.add(pcmData);
       _totalAudioBytes += pcmData.length;
 
+      // If not playing, start playback
+      // Use a lock-like mechanism to prevent multiple simultaneous starts
       if (!_isPlaying) {
         try {
           _isPlaying = true;
           
-          // Pre-feed chunks before starting (iOS needs more)
-          final chunksToFeed = Platform.isIOS
-              ? _iosChunksToPreFeed
-              : _androidChunksToPreFeed;
-          int chunksFed = 0;
-          
-          while (_audioQueue.isNotEmpty && chunksFed < chunksToFeed) {
-            final chunk = _audioQueue.removeFirst();
-            await _feedAudioData(chunk);
-            chunksFed++;
-          }
-          
-          if (chunksFed == 0) {
-            _isPlaying = false;
-            return;
-          }
-          
-          await Future.delayed(Duration(milliseconds: Platform.isIOS ? 100 : 50));
-          
-          // Reconfigure audio session right before playback to ensure settings are applied
-          // This is critical because flutter_pcm_sound might have overwritten our settings
-          // Note: We don't call setActive here because flutter_pcm_sound will handle activation
+          // Ensure audio session is configured before playback (iOS)
+          // We try to reconfigure, but if it fails with OSStatus 2003329396,
+          // that's okay - it means the session is already active and configured
           if (_audioSession != null && Platform.isIOS) {
             try {
-              // Reconfigure with defaultToSpeaker option (critical for iOS audio output)
               await _audioSession!.configure(
                 AudioSessionConfiguration(
                   avAudioSessionCategory: AVAudioSessionCategory.playAndRecord,
@@ -466,32 +488,92 @@ class AudioNotifier extends BaseNotifier<AudioState> {
                   androidWillPauseWhenDucked: false,
                 ),
               );
-              
               developer.log(
-                '✅ Audio session reconfigured for playback (iOS) - flutter_pcm_sound will activate',
+                '✅ Audio session configured for playback (iOS)',
                 name: 'AudioNotifier',
               );
-              
-              // Small delay to ensure configuration takes effect
-              await Future.delayed(Duration(milliseconds: 50));
             } catch (e, stackTrace) {
-              developer.log(
-                '⚠️ Error reconfiguring audio session (continuing): $e',
-                name: 'AudioNotifier',
-                error: e,
-                stackTrace: stackTrace,
-              );
-              // Continue anyway - flutter_pcm_sound will handle activation
+              // OSStatus 2003329396 means session is already active - that's fine
+              final errStr = e.toString();
+              if (errStr.contains('2003329396')) {
+                developer.log(
+                  'ℹ️ Audio session already active (continuing)',
+                  name: 'AudioNotifier',
+                );
+              } else {
+                developer.log(
+                  '⚠️ Error configuring audio session (continuing): $e',
+                  name: 'AudioNotifier',
+                  error: e,
+                  stackTrace: stackTrace,
+                );
+              }
             }
           }
           
-          // flutter_pcm_sound will activate the audio session when start() is called
-          FlutterPcmSound.start();
+          // Start FlutterPcmSound immediately for real-time playback
+          // Minimal delay to ensure audio session is ready
+          await Future.delayed(Duration(milliseconds: Platform.isIOS ? 20 : 10));
+          
+          try {
+            FlutterPcmSound.start();
+            developer.log(
+              '▶️ FlutterPcmSound started, queue size: ${_audioQueue.length}',
+              name: 'AudioNotifier',
+            );
+          } catch (e, stackTrace) {
+            // OSStatus -50 (kAudio_ParamError) can occur if audio unit isn't ready
+            final errStr = e.toString();
+            if (errStr.contains('-50') || errStr.contains('AudioUnitError')) {
+              developer.log(
+                '⚠️ FlutterPcmSound.start error (retrying): $e',
+                name: 'AudioNotifier',
+              );
+              // Wait a bit and retry
+              await Future.delayed(Duration(milliseconds: 50));
+              try {
+                FlutterPcmSound.start();
+                developer.log('✅ FlutterPcmSound started on retry', name: 'AudioNotifier');
+              } catch (e2) {
+                developer.log('❌ FlutterPcmSound.start failed after retry: $e2', name: 'AudioNotifier');
+                _isPlaying = false;
+                return;
+              }
+            } else {
+              developer.log('❌ FlutterPcmSound.start error: $e', error: e, stackTrace: stackTrace);
+              _isPlaying = false;
+              return;
+            }
+          }
+          
+          // Minimal delay to ensure audio unit is ready (reduced for real-time)
+          await Future.delayed(Duration(milliseconds: Platform.isIOS ? 10 : 5));
+          
+          // Feed first chunk immediately for real-time playback
+          if (_audioQueue.isNotEmpty && _isPlaying) {
+            final chunk = _audioQueue.removeFirst();
+            await _feedAudioData(chunk);
+          }
+          
+          // Start aggressive fallback timer for continuous real-time feeding
           _startFallbackFeedTimer();
         } catch (e, stackTrace) {
           developer.log('Error starting playback: $e', error: e, stackTrace: stackTrace);
           _isPlaying = false;
           return;
+        }
+      } else {
+        // If already playing, feed this chunk immediately for real-time playback
+        // This ensures chunks are played as soon as they arrive
+        if (_isPlaying && _audioQueue.isNotEmpty) {
+          // Feed immediately without waiting
+          final chunk = _audioQueue.removeFirst();
+          await _feedAudioData(chunk);
+          
+          // Also trigger fallback timer to ensure continuous feeding
+          if (_fallbackFeedTimer == null) {
+            _startFallbackFeedTimer();
+          }
         }
       }
 
@@ -583,7 +665,8 @@ class AudioNotifier extends BaseNotifier<AudioState> {
 
   Future<void> startStreamingAudio() async {
     return await runSafely(() async {
-      _stopCurrentPlayback();
+      // Silently stop any existing playback before starting recording
+      _stopCurrentPlayback(silent: true);
 
       if (!_webSocketManager.isConnected) {
         setStatusMessage = 'Not connected to WebSocket';
@@ -676,17 +759,24 @@ class AudioNotifier extends BaseNotifier<AudioState> {
 
   Future<void> interruptStreamingAudio() async {
     return await runSafely(() async {
+      developer.log(
+        '⏹️ Interrupting audio stream - stopping playback immediately',
+        name: 'AudioNotifier',
+      );
+      
+      // Stop audio playback FIRST (immediate)
+      _stopCurrentPlayback();
+      _audioCompletionTimer?.cancel();
+      _audioCompletionTimer = null;
+      _totalAudioBytes = 0;
+      
+      // Then stop recording
       if (state.isStreamingData) {
         _recorder.stopStreamingData();
         state = state.copyWith(isStreamingData: false);
       }
       await _audioInputSubscription?.cancel();
       _audioInputSubscription = null;
-
-      _stopCurrentPlayback();
-      _audioCompletionTimer?.cancel();
-      _audioCompletionTimer = null;
-      _totalAudioBytes = 0;
 
       _stopTalkingAnimation();
       final interruptEvent = InterruptEventModel(sessionId: state.sessionId);

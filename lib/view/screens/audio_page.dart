@@ -34,199 +34,196 @@ class _AudioPageState extends State<AudioPage> {
           // Background image
           Positioned.fill(
             child: Image.asset(
-              'assets/background.jpg',
+              'assets/background4.jpg',
               fit: BoxFit.cover,
             ),
           ),
           // Backdrop filter with blur
           Positioned.fill(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-              child: SizedBox.expand(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    vertical: 10.0.h,
-                    horizontal: 20.w,
-                  ),
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      return Stack(
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                        // Player Status Card - Use Selector to only rebuild when status changes
-                        _buildPlayerStatusCard(),
-                        SizedBox(height: 20.h),
-                        // Messages list - using Selector to only rebuild when messages change
-                        Expanded(
-                          child: RepaintBoundary(
-                            child: Consumer(
-                              builder: (context, ref, child) {
-                                final messages = ref.watch(
-                                  audioProvider.select(
-                                    (state) => state.messages,
-                                  ),
-                                );
-                                return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(
-                                      child: messages.isEmpty
-                                          ? Center(
-                                              child: Text(
-                                                'No messages yet',
-                                                style: TextStyle(
-                                                  color: Colors.white
-                                                      .withValues(alpha: 0.7),
-                                                  fontSize: 14,
-                                                ),
+            child: SizedBox.expand(
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  vertical: 10.0.h,
+                  horizontal: 20.w,
+                ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return Stack(
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                      // Player Status Card - Use Selector to only rebuild when status changes
+                      _buildPlayerStatusCard(),
+                      SizedBox(height: 20.h),
+                      // Messages list - using Selector to only rebuild when messages change
+                      Expanded(
+                        child: RepaintBoundary(
+                          child: Consumer(
+                            builder: (context, ref, child) {
+                              final messages = ref.watch(
+                                audioProvider.select(
+                                  (state) => state.messages,
+                                ),
+                              );
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: messages.isEmpty
+                                        ? Center(
+                                            child: Text(
+                                              'No messages yet',
+                                              style: TextStyle(
+                                                color: Colors.white
+                                                    .withValues(alpha: 0.7),
+                                                fontSize: 14,
                                               ),
-                                            )
-                                          : Builder(
-                                              builder: (context) {
-                                                // Show messages in normal order (oldest at top, newest at bottom)
-                                                return ListView.builder(
-                                                  controller: _scrollController,
-                                                  cacheExtent: 1000,
-                                                  padding: EdgeInsets.symmetric(
-                                                    // horizontal: 16,
-                                                    vertical: 12.h,
-                                                  ),
-                                                  itemCount: messages.length,
-                                                  itemBuilder: (context, index) {
-                                                    // index 0 = oldest message (at top), last index = latest (at bottom)
-                                                    final message =
-                                                        messages[index];
-                                                    final isUser =
-                                                        message.role == 'user';
-                                                    final messageKey =
-                                                        'msg_$index';
+                                            ),
+                                          )
+                                        : Builder(
+                                            builder: (context) {
+                                              // Show messages in normal order (oldest at top, newest at bottom)
+                                              return ListView.builder(
+                                                controller: _scrollController,
+                                                cacheExtent: 1000,
+                                                padding: EdgeInsets.symmetric(
+                                                  // horizontal: 16,
+                                                  vertical: 12.h,
+                                                ),
+                                                itemCount: messages.length,
+                                                itemBuilder: (context, index) {
+                                                  // index 0 = oldest message (at top), last index = latest (at bottom)
+                                                  final message =
+                                                      messages[index];
+                                                  final isUser =
+                                                      message.role == 'user';
+                                                  final messageKey =
+                                                      'msg_$index';
 
-                                                    return Padding(
-                                                      key: ValueKey(messageKey),
-                                                      padding: EdgeInsets.only(
-                                                        bottom: 12.h,
-                                                      ),
-                                                      child: Row(
-                                                        mainAxisAlignment:
-                                                            isUser
-                                                            ? MainAxisAlignment
-                                                                  .start
-                                                            : MainAxisAlignment
-                                                                  .end,
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .start,
-                                                        children: [
-                                                          if (!isUser) Spacer(),
-                                                          Flexible(
-                                                            flex: 2,
-                                                            child: IntrinsicHeight(
-                                                              child: GlassContainer(
-                                                                borderRadius: BorderRadius.circular(
-                                                                  ScreenUtilHelper.safeRadius(40.0, 40.0),
+                                                  return Padding(
+                                                    key: ValueKey(messageKey),
+                                                    padding: EdgeInsets.only(
+                                                      bottom: 12.h,
+                                                    ),
+                                                    child: Row(
+                                                      mainAxisAlignment:
+                                                          isUser
+                                                          ? MainAxisAlignment
+                                                                .start
+                                                          : MainAxisAlignment
+                                                                .end,
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      children: [
+                                                        if (!isUser) Spacer(),
+                                                        Flexible(
+                                                          flex: 2,
+                                                          child: IntrinsicHeight(
+                                                            child: GlassContainer(
+                                                              borderRadius: BorderRadius.circular(
+                                                                ScreenUtilHelper.safeRadius(40.0, 40.0),
+                                                              ),
+                                                              gradient: LinearGradient(
+                                                                colors: [
+                                                                  Colors.white.withOpacity(0.40),
+                                                                  Colors.white.withOpacity(0.10),
+                                                                ],
+                                                                begin: Alignment.topLeft,
+                                                                end: Alignment.bottomRight,
+                                                              ),
+                                                              borderGradient: LinearGradient(
+                                                                colors: [
+                                                                  Colors.white.withOpacity(0.60),
+                                                                  Colors.white.withOpacity(0.10),
+                                                                ],
+                                                                begin: Alignment.topLeft,
+                                                                end: Alignment.bottomRight,
+                                                              ),
+                                                              blur: 15,
+                                                              borderWidth: 1.0,
+                                                              isFrostedGlass: true,
+                                                              frostedOpacity: 0.12,
+                                                              child: Padding(
+                                                                padding: EdgeInsets.symmetric(
+                                                                  horizontal:
+                                                                      20.w,
+                                                                  vertical:
+                                                                      10.h,
                                                                 ),
-                                                                gradient: LinearGradient(
-                                                                  colors: [
-                                                                    Colors.white.withOpacity(0.40),
-                                                                    Colors.white.withOpacity(0.10),
+                                                                child: Column(
+                                                                  crossAxisAlignment:
+                                                                      CrossAxisAlignment
+                                                                          .start,
+                                                                  mainAxisSize:
+                                                                      MainAxisSize
+                                                                          .min,
+                                                                  children: [
+                                                                    Text(
+                                                                      isUser
+                                                                          ? 'You'
+                                                                          : 'AI',
+                                                                      style: TextStyle(
+                                                                        fontSize:
+                                                                            11.sp,
+                                                                        fontWeight:
+                                                                            FontWeight.w600,
+                                                                        color:
+                                                                            Colors.white,
+                                                                        letterSpacing:
+                                                                            0.5.w,
+                                                                      ),
+                                                                    ),
+                                                                    SizedBox(
+                                                                      height:
+                                                                          6.h,
+                                                                    ),
+                                                                    Text(
+                                                                      message
+                                                                          .content,
+                                                                      style: TextStyle(
+                                                                        fontSize:
+                                                                            14.sp,
+                                                                        color:
+                                                                            Colors.white,
+                                                                      ),
+                                                                    ),
                                                                   ],
-                                                                  begin: Alignment.topLeft,
-                                                                  end: Alignment.bottomRight,
-                                                                ),
-                                                                borderGradient: LinearGradient(
-                                                                  colors: [
-                                                                    Colors.white.withOpacity(0.60),
-                                                                    Colors.white.withOpacity(0.10),
-                                                                  ],
-                                                                  begin: Alignment.topLeft,
-                                                                  end: Alignment.bottomRight,
-                                                                ),
-                                                                blur: 15,
-                                                                borderWidth: 1.0,
-                                                                isFrostedGlass: true,
-                                                                frostedOpacity: 0.12,
-                                                                child: Padding(
-                                                                  padding: EdgeInsets.symmetric(
-                                                                    horizontal:
-                                                                        20.w,
-                                                                    vertical:
-                                                                        10.h,
-                                                                  ),
-                                                                  child: Column(
-                                                                    crossAxisAlignment:
-                                                                        CrossAxisAlignment
-                                                                            .start,
-                                                                    mainAxisSize:
-                                                                        MainAxisSize
-                                                                            .min,
-                                                                    children: [
-                                                                      Text(
-                                                                        isUser
-                                                                            ? 'You'
-                                                                            : 'AI',
-                                                                        style: TextStyle(
-                                                                          fontSize:
-                                                                              11.sp,
-                                                                          fontWeight:
-                                                                              FontWeight.w600,
-                                                                          color:
-                                                                              Colors.white,
-                                                                          letterSpacing:
-                                                                              0.5.w,
-                                                                        ),
-                                                                      ),
-                                                                      SizedBox(
-                                                                        height:
-                                                                            6.h,
-                                                                      ),
-                                                                      Text(
-                                                                        message
-                                                                            .content,
-                                                                        style: TextStyle(
-                                                                          fontSize:
-                                                                              14.sp,
-                                                                          color:
-                                                                              Colors.white,
-                                                                        ),
-                                                                      ),
-                                                                    ],
-                                                                  ),
                                                                 ),
                                                               ),
                                                             ),
                                                           ),
-                                                          if (isUser) Spacer(),
-                                                        ],
-                                                      ),
-                                                    );
-                                                  },
-                                                );
-                                              },
-                                            ),
-                                    ),
-                                  ],
-                                );
-                              },
-                            ),
+                                                        ),
+                                                        if (isUser) Spacer(),
+                                                      ],
+                                                    ),
+                                                  );
+                                                },
+                                              );
+                                            },
+                                          ),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
                         ),
-                            ],
-                          ),
-                          Positioned(
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            child: RepaintBoundary(child: BottomButton()),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-              ),
+                      ),
+                          ],
+                        ),
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          child: RepaintBoundary(child: BottomButton()),
+                        ),
+                      ],
+                    );
+                  },
+                ),
             ),
-          ),
+                        ),
           ),
         ],
       ),

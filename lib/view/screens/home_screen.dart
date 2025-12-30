@@ -43,113 +43,110 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         children: [
           Positioned.fill(
             child: Image.asset(
-              'assets/background.jpg',
+              'assets/background4.jpg',
               fit: BoxFit.cover,
             ),
           ),
           Positioned.fill(
             child: ClipRect(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-                child: Consumer(
-                builder: (context, ref, child) {
-                  final state = ref.watch(audioProvider);
-                  return Padding(
-                    padding: EdgeInsets.all(20.0.h),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SizedBox(height: 40.h),
-                        // Huge circular connect button
-                        Center(
-                          child: AnimatedWrapper(
-                            key: _animationKey,
-                            animationType: AnimationType.rotate,
-                            child: _CircularConnectButton(
-                              isConnected: state.isConnected,
-                              onPressed: () {
-                                // Trigger animation on press
-                                _animationKey.currentState?.play();
-                                if (state.isConnected) {
-                                  audioNotifier.disconnectWebSocket();
-                                } else {
-                                  audioNotifier.reconnect();
-                                }
-                              },
-                            ),
+              child: Consumer(
+              builder: (context, ref, child) {
+                final state = ref.watch(audioProvider);
+                return Padding(
+                  padding: EdgeInsets.all(20.0.h),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(height: 40.h),
+                      // Huge circular connect button
+                      Center(
+                        child: AnimatedWrapper(
+                          key: _animationKey,
+                          animationType: AnimationType.rotate,
+                          child: _CircularConnectButton(
+                            isConnected: state.isConnected,
+                            onPressed: () {
+                              // Trigger animation on press
+                              _animationKey.currentState?.play();
+                              if (state.isConnected) {
+                                audioNotifier.disconnectWebSocket();
+                              } else {
+                                audioNotifier.reconnect();
+                              }
+                            },
                           ),
                         ),
-                        SizedBox(height: 40.h),
-                        if (state.isConnected)
-                          AnimatedWrapper(
-                            animationType: AnimationType.slideRight,
-                            duration: const Duration(seconds: 1),
-                            child: EmbossedGlassButton(
-                              text: 'Get Session ID',
-                              icon: CupertinoIcons
-                                  .arrow_right_arrow_left_square_fill,
-                              onPressed: () {
-                                audioNotifier.callSessionId();
-                              },
-                              width: double.infinity,
-                            ),
+                      ),
+                      SizedBox(height: 40.h),
+                      if (state.isConnected)
+                        AnimatedWrapper(
+                          animationType: AnimationType.slideRight,
+                          duration: const Duration(seconds: 1),
+                          child: EmbossedGlassButton(
+                            text: 'Get Session ID',
+                            icon: CupertinoIcons
+                                .arrow_right_arrow_left_square_fill,
+                            onPressed: () {
+                              audioNotifier.callSessionId();
+                            },
+                            width: double.infinity,
                           ),
+                        ),
 
-                        SizedBox(height: 20.h),
-                        // Message button
-                        if (state.isConnected && state.sessionId.isNotEmpty)
-                          AnimatedWrapper(
-                            animationType: AnimationType.slideRight,
-                            duration: const Duration(seconds: 2),
-                            child: EmbossedGlassButton(
-                              text: 'Message',
-                              icon: CupertinoIcons.chat_bubble_2_fill,
-                              onPressed: () {
-                                audioNotifier.setScreenType(ScreenType.message);
+                      SizedBox(height: 20.h),
+                      // Message button
+                      if (state.isConnected && state.sessionId.isNotEmpty)
+                        AnimatedWrapper(
+                          animationType: AnimationType.slideRight,
+                          duration: const Duration(seconds: 2),
+                          child: EmbossedGlassButton(
+                            text: 'Message',
+                            icon: CupertinoIcons.chat_bubble_2_fill,
+                            onPressed: () {
+                              audioNotifier.setScreenType(ScreenType.message);
 
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const AudioPage(),
-                                  ),
-                                );
-                              },
-                              width: double.infinity,
-                            ),
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const AudioPage(),
+                                ),
+                              );
+                            },
+                            width: double.infinity,
                           ),
+                        ),
 
-                        SizedBox(height: 20.h),
+                      SizedBox(height: 20.h),
 
-                        // Human button
-                        if (state.isConnected && state.sessionId.isNotEmpty)
-                          AnimatedWrapper(
-                            animationType: AnimationType.slideRight,
-                            duration: const Duration(seconds: 3),
-                            child: EmbossedGlassButton(
-                              text: 'Human',
-                              icon: Icons.person,
-                              onPressed: () {
-                                audioNotifier.setScreenType(
-                                  ScreenType.humanModel,
-                                );
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        const HumanModelView(),
-                                  ),
-                                );
-                              },
-                              width: double.infinity,
-                            ),
+                      // Human button
+                      if (state.isConnected && state.sessionId.isNotEmpty)
+                        AnimatedWrapper(
+                          animationType: AnimationType.slideRight,
+                          duration: const Duration(seconds: 3),
+                          child: EmbossedGlassButton(
+                            text: 'Human',
+                            icon: Icons.person,
+                            onPressed: () {
+                              audioNotifier.setScreenType(
+                                ScreenType.humanModel,
+                              );
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const HumanModelView(),
+                                ),
+                              );
+                            },
+                            width: double.infinity,
                           ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
+                        ),
+                    ],
+                  ),
+                );
+              },
+                            ),
             ),
           ),
         ],
