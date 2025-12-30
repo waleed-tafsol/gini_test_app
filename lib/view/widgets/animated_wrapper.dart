@@ -141,39 +141,79 @@ class AnimatedWrapperState extends State<AnimatedWrapper>
         );
 
       case AnimationType.slideUp:
-        return Transform.translate(
-          offset: Offset(0, (1 - _animation.value) * 100),
-          child: Opacity(
-            opacity: _animation.value,
-            child: widget.child,
-          ),
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final maxWidth = constraints.maxWidth.isFinite 
+                ? constraints.maxWidth 
+                : MediaQuery.of(context).size.width;
+            return SizedBox(
+              width: maxWidth,
+              child: Transform.translate(
+                offset: Offset(0, (1 - _animation.value) * 100),
+                child: Opacity(
+                  opacity: _animation.value,
+                  child: widget.child,
+                ),
+              ),
+            );
+          },
         );
 
       case AnimationType.slideDown:
-        return Transform.translate(
-          offset: Offset(0, (_animation.value - 1) * 100),
-          child: Opacity(
-            opacity: _animation.value,
-            child: widget.child,
-          ),
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final maxWidth = constraints.maxWidth.isFinite 
+                ? constraints.maxWidth 
+                : MediaQuery.of(context).size.width;
+            return SizedBox(
+              width: maxWidth,
+              child: Transform.translate(
+                offset: Offset(0, (_animation.value - 1) * 100),
+                child: Opacity(
+                  opacity: _animation.value,
+                  child: widget.child,
+                ),
+              ),
+            );
+          },
         );
 
       case AnimationType.slideLeft:
-        return Transform.translate(
-          offset: Offset((1 - _animation.value) * 100, 0),
-          child: Opacity(
-            opacity: _animation.value,
-            child: widget.child,
-          ),
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final maxWidth = constraints.maxWidth.isFinite 
+                ? constraints.maxWidth 
+                : MediaQuery.of(context).size.width;
+            return SizedBox(
+              width: maxWidth,
+              child: Transform.translate(
+                offset: Offset((1 - _animation.value) * 100, 0),
+                child: Opacity(
+                  opacity: _animation.value,
+                  child: widget.child,
+                ),
+              ),
+            );
+          },
         );
 
       case AnimationType.slideRight:
-        return Transform.translate(
-          offset: Offset((_animation.value - 1) * 100, 0),
-          child: Opacity(
-            opacity: _animation.value,
-            child: widget.child,
-          ),
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final maxWidth = constraints.maxWidth.isFinite 
+                ? constraints.maxWidth 
+                : MediaQuery.of(context).size.width;
+            return SizedBox(
+              width: maxWidth,
+              child: Transform.translate(
+                offset: Offset((_animation.value - 1) * 100, 0),
+                child: Opacity(
+                  opacity: _animation.value,
+                  child: widget.child,
+                ),
+              ),
+            );
+          },
         );
 
       case AnimationType.rotate:
