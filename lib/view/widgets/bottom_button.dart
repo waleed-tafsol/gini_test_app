@@ -136,7 +136,7 @@ class _BottomButtonState extends ConsumerState<BottomButton>
                                       ),
                                       child: Icon(
                                         Icons.mic,
-                                        color: Colors.white,
+                                        color: Colors.black87,
                                         size: 30.sp,
                                       ),
                                     ),
@@ -253,7 +253,7 @@ class _BottomButtonState extends ConsumerState<BottomButton>
                             ),
                             child: Icon(
                               Icons.pause_presentation,
-                              color: Colors.white,
+                              color: Colors.black87,
                               size: 30.sp,
                             ),
                           ),

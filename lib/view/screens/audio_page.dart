@@ -33,7 +33,7 @@ class _AudioPageState extends State<AudioPage> {
           // Background image
           Positioned.fill(
             child: Image.asset(
-              'assets/background4.jpg',
+              'assets/background5.jpg',
               fit: BoxFit.cover,
             ),
           ),
@@ -70,8 +70,7 @@ class _AudioPageState extends State<AudioPage> {
                                             child: Text(
                                               'No messages yet',
                                               style: TextStyle(
-                                                color: Colors.white
-                                                    .withValues(alpha: 0.7),
+                                                color: Colors.black87,
                                                 fontSize: 14,
                                               ),
                                             ),
@@ -129,7 +128,7 @@ class _AudioPageState extends State<AudioPage> {
                                                                     style: TextStyle(
                                                                       fontSize: 11.sp,
                                                                       fontWeight: FontWeight.w600,
-                                                                      color: Colors.white,
+                                                                      color: Colors.black87,
                                                                       letterSpacing: 0.5.w,
                                                                     ),
                                                                   ),
@@ -138,7 +137,7 @@ class _AudioPageState extends State<AudioPage> {
                                                                     message.content,
                                                                     style: TextStyle(
                                                                       fontSize: 14.sp,
-                                                                      color: Colors.white,
+                                                                      color: Colors.black87,
                                                                     ),
                                                                   ),
                                                                 ],
@@ -213,7 +212,7 @@ class _AudioPageState extends State<AudioPage> {
                               width: 35.w,
                               child: Icon(
                                 Icons.arrow_back,
-                                color: Colors.white,
+                                color: Colors.black87,
                               ),
                             ),
                           ),
@@ -222,7 +221,7 @@ class _AudioPageState extends State<AudioPage> {
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
                               fontSize: 18.sp,
-                              color: Colors.white,
+                              color: Colors.black87,
                               letterSpacing: 0.5.w,
                             ),
                           ),
@@ -269,7 +268,7 @@ class _AudioPageState extends State<AudioPage> {
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 12.sp,
-                            color: Colors.white.withValues(alpha: 0.8),
+                            color: Colors.black87,
                           ),
                         ),
                         SizedBox(height: 8.h),
@@ -277,7 +276,7 @@ class _AudioPageState extends State<AudioPage> {
                           streamedResponse!,
                           style: TextStyle(
                             fontSize: 14.sp,
-                            color: Colors.white,
+                            color: Colors.black87,
                           ),
                         ),
                       ],

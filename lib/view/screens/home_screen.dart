@@ -38,7 +38,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         children: [
           Positioned.fill(
             child: Image.asset(
-              'assets/background4.jpg',
+              'assets/background5.jpg',
               fit: BoxFit.cover,
             ),
           ),
@@ -116,14 +116,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     children: [
                                       Icon(
                                         CupertinoIcons.arrow_right_arrow_left_square_fill,
-                                        color: Colors.white,
+                                        color: Colors.black87,
                                         size: 22.sp,
                                       ),
                                       SizedBox(width: 10.w),
                                       Text(
                                         'Get Session ID',
                                         style: TextStyle(
-                                          color: Colors.white,
+                                          color: Colors.black87,
                                           fontSize: 16.sp,
                                           fontWeight: FontWeight.w600,
                                           letterSpacing: 0.5.w,
@@ -189,14 +189,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     children: [
                                       Icon(
                                         CupertinoIcons.chat_bubble_2_fill,
-                                        color: Colors.white,
+                                        color: Colors.black87,
                                         size: 22.sp,
                                       ),
                                       SizedBox(width: 10.w),
                                       Text(
                                         'Message',
                                         style: TextStyle(
-                                          color: Colors.white,
+                                          color: Colors.black87,
                                           fontSize: 16.sp,
                                           fontWeight: FontWeight.w600,
                                           letterSpacing: 0.5.w,
@@ -266,14 +266,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     children: [
                                       Icon(
                                         Icons.person,
-                                        color: Colors.white,
+                                        color: Colors.black87,
                                         size: 22.sp,
                                       ),
                                       SizedBox(width: 10.w),
                                       Text(
                                         'Human',
                                         style: TextStyle(
-                                          color: Colors.white,
+                                          color: Colors.black87,
                                           fontSize: 16.sp,
                                           fontWeight: FontWeight.w600,
                                           letterSpacing: 0.5.w,
@@ -342,7 +342,7 @@ class _CircularConnectButtonState extends State<_CircularConnectButton> {
                     widget.isConnected
                         ? CupertinoIcons.bolt_fill
                         : CupertinoIcons.bolt_slash_fill,
-                    color: Colors.white,
+                    color: Colors.black87,
                     size: 80.0,
                   ),
                 ),
@@ -381,7 +381,7 @@ class _CircularConnectButtonState extends State<_CircularConnectButton> {
                   widget.isConnected
                       ? CupertinoIcons.bolt_fill
                       : CupertinoIcons.bolt_slash_fill,
-                  color: Colors.white,
+                  color: Colors.black87,
                   size: 80.sp,
                 ),
               ),
