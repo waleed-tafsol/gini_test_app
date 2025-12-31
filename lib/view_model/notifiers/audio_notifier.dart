@@ -7,10 +7,13 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
 import 'package:audio_session/audio_session.dart';
-import 'package:flutter_pcm_sound/flutter_pcm_sound.dart';
 import 'package:flutter_recorder/flutter_recorder.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tafsol_genie_app/models/message_data.dart';
+
+// Platform-specific imports
+import 'package:flutter_pcm_sound/flutter_pcm_sound.dart';
+import 'package:flutter_soloud/flutter_soloud.dart';
 
 import '../../models/ai_chat_messages.dart';
 import '../../models/permission_handler.dart';
@@ -28,15 +31,25 @@ class AudioNotifier extends BaseNotifier<AudioState> {
   late final WebSocketService _webSocketManager;
   AudioSession? _audioSession;
   
-  // Audio playback state
+  // Platform detection
+  bool get _usePcmSound => !kIsWeb && (Platform.isIOS || Platform.isMacOS);
+  
+  // Audio playback state - flutter_pcm_sound (iOS/macOS)
   bool _pcmSoundInitialized = false;
   bool _isPlaying = false;
   final Queue<Uint8List> _audioQueue = Queue<Uint8List>();
   Timer? _audioCompletionTimer;
   Timer? _fallbackFeedTimer;
-  int _totalAudioBytes = 0;
   DateTime? _lastCallbackTime;
   DateTime? _fallbackTimerStartTime;
+  
+  // Audio playback state - flutter_soloud (Windows/Android/Web)
+  final SoLoud _soloud = SoLoud.instance;
+  bool _soloudInitialized = false;
+  dynamic _bufferStream;
+  SoundHandle? _streamHandle;
+  
+  int _totalAudioBytes = 0;
   
   // Audio recording
   final Recorder _recorder = Recorder.instance;
@@ -139,10 +152,75 @@ class AudioNotifier extends BaseNotifier<AudioState> {
 
   Future<void> _initializeAudio() async {
     return await runSafely(() async {
-      // Initialize and configure audio_session FIRST (before flutter_pcm_sound)
-      // This ensures our settings are applied before flutter_pcm_sound sets up
-      if (_audioSession == null) {
-        _audioSession = await AudioSession.instance;
+      if (_usePcmSound) {
+        // Use flutter_pcm_sound for iOS and macOS
+        await _initializePcmSound();
+      } else {
+        // Use flutter_soloud for Windows, Android, and Web
+        await _initializeSoloud();
+      }
+      
+      await _recorder.init(
+        format: PCMFormat.s16le,
+        sampleRate: _sampleRate,
+        channels: RecorderChannels.mono,
+      );
+    });
+  }
+  
+  Future<void> _initializePcmSound() async {
+    // Initialize and configure audio_session FIRST (before flutter_pcm_sound)
+    if (_audioSession == null) {
+      _audioSession = await AudioSession.instance;
+      await _audioSession!.configure(
+        AudioSessionConfiguration(
+          avAudioSessionCategory: AVAudioSessionCategory.playAndRecord,
+          avAudioSessionCategoryOptions: AVAudioSessionCategoryOptions.defaultToSpeaker |
+              AVAudioSessionCategoryOptions.allowBluetooth |
+              AVAudioSessionCategoryOptions.duckOthers,
+          avAudioSessionMode: AVAudioSessionMode.defaultMode,
+          avAudioSessionRouteSharingPolicy: AVAudioSessionRouteSharingPolicy.defaultPolicy,
+          avAudioSessionSetActiveOptions: AVAudioSessionSetActiveOptions.none,
+          androidAudioAttributes: const AndroidAudioAttributes(
+            contentType: AndroidAudioContentType.speech,
+            flags: AndroidAudioFlags.none,
+            usage: AndroidAudioUsage.voiceCommunication,
+          ),
+          androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
+          androidWillPauseWhenDucked: false,
+        ),
+      );
+      developer.log(
+        '✅ Audio session configured (before flutter_pcm_sound)',
+        name: 'AudioNotifier',
+      );
+    }
+    
+    if (!_pcmSoundInitialized) {
+      FlutterPcmSound.setLogLevel(LogLevel.verbose);
+      
+      await FlutterPcmSound.setup(
+        sampleRate: _sampleRate,
+        channelCount: 1,
+        iosAudioCategory: IosAudioCategory.playAndRecord,
+        iosAllowBackgroundAudio: false,
+      ).onError((err, stackTrace) {
+        developer.log('FlutterPcmSound.setup error: $err',
+            error: err, stackTrace: stackTrace);
+      });
+      
+      // iOS needs larger buffer for smooth playback
+      final threshold = Platform.isIOS ? (_sampleRate ~/ 2) : (_sampleRate ~/ 10);
+      await FlutterPcmSound.setFeedThreshold(threshold).onError((err, stackTrace) {
+        developer.log('FlutterPcmSound.setFeedThreshold error: $err',
+            error: err, stackTrace: stackTrace);
+      });
+      
+      FlutterPcmSound.setFeedCallback(_onFeedCallback);
+      _pcmSoundInitialized = true;
+      
+      // Reconfigure audio session AFTER flutter_pcm_sound setup
+      if (Platform.isIOS) {
         await _audioSession!.configure(
           AudioSessionConfiguration(
             avAudioSessionCategory: AVAudioSessionCategory.playAndRecord,
@@ -162,68 +240,32 @@ class AudioNotifier extends BaseNotifier<AudioState> {
           ),
         );
         developer.log(
-          '✅ Audio session configured (before flutter_pcm_sound)',
+          '✅ Audio session reconfigured after flutter_pcm_sound setup',
           name: 'AudioNotifier',
         );
       }
-      
-      if (!_pcmSoundInitialized) {
-        FlutterPcmSound.setLogLevel(LogLevel.verbose);
-        
-        await FlutterPcmSound.setup(
-          sampleRate: _sampleRate,
-          channelCount: 1,
-          iosAudioCategory: IosAudioCategory.playAndRecord,
-          iosAllowBackgroundAudio: false,
-        ).onError((err, stackTrace) {
-          developer.log('FlutterPcmSound.setup error: $err',
-              error: err, stackTrace: stackTrace);
-        });
-        
-        // iOS needs larger buffer for smooth playback
-        final threshold = Platform.isIOS ? (_sampleRate ~/ 2) : (_sampleRate ~/ 10);
-        await FlutterPcmSound.setFeedThreshold(threshold).onError((err, stackTrace) {
-          developer.log('FlutterPcmSound.setFeedThreshold error: $err',
-              error: err, stackTrace: stackTrace);
-        });
-        
-        FlutterPcmSound.setFeedCallback(_onFeedCallback);
-        _pcmSoundInitialized = true;
-        
-        // Reconfigure audio session AFTER flutter_pcm_sound setup
-        // This ensures our settings (especially defaultToSpeaker) take precedence
-        if (Platform.isIOS) {
-          await _audioSession!.configure(
-            AudioSessionConfiguration(
-              avAudioSessionCategory: AVAudioSessionCategory.playAndRecord,
-              avAudioSessionCategoryOptions: AVAudioSessionCategoryOptions.defaultToSpeaker |
-                  AVAudioSessionCategoryOptions.allowBluetooth |
-                  AVAudioSessionCategoryOptions.duckOthers,
-              avAudioSessionMode: AVAudioSessionMode.defaultMode,
-              avAudioSessionRouteSharingPolicy: AVAudioSessionRouteSharingPolicy.defaultPolicy,
-              avAudioSessionSetActiveOptions: AVAudioSessionSetActiveOptions.none,
-              androidAudioAttributes: const AndroidAudioAttributes(
-                contentType: AndroidAudioContentType.speech,
-                flags: AndroidAudioFlags.none,
-                usage: AndroidAudioUsage.voiceCommunication,
-              ),
-              androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
-              androidWillPauseWhenDucked: false,
-            ),
-          );
-          developer.log(
-            '✅ Audio session reconfigured after flutter_pcm_sound setup',
-            name: 'AudioNotifier',
-          );
-        }
-      }
-      
-      await _recorder.init(
-        format: PCMFormat.s16le,
+    }
+  }
+  
+  Future<void> _initializeSoloud() async {
+    if (!_soloudInitialized) {
+      await _soloud.init(sampleRate: _sampleRate);
+      _soloudInitialized = true;
+      debugPrint('✅ SoLoud initialized successfully with sample rate: $_sampleRate');
+
+      _soloud.setGlobalVolume(1.0);
+      debugPrint('🔊 Set global volume to 1.0');
+
+      _bufferStream = _soloud.setBufferStream(
+        maxBufferSizeBytes: 1024 * 1024 * 10, // 10MB max buffer
+        bufferingType: BufferingType.preserved,
+        bufferingTimeNeeds: 0.1, // 100ms buffer
         sampleRate: _sampleRate,
-        channels: RecorderChannels.mono,
+        channels: Channels.mono,
+        format: BufferType.s16le,
       );
-    });
+      debugPrint('✅ Buffer stream initialized for PCM16 playback');
+    }
   }
   
   void _onFeedCallback(int remainingFrames) async {
@@ -416,6 +458,14 @@ class AudioNotifier extends BaseNotifier<AudioState> {
   }
 
   void _stopCurrentPlayback({bool silent = false}) {
+    if (_usePcmSound) {
+      _stopPcmSoundPlayback(silent: silent);
+    } else {
+      _stopSoloudPlayback(silent: silent);
+    }
+  }
+  
+  void _stopPcmSoundPlayback({bool silent = false}) {
     // Only log if there was actually playback happening
     final wasPlaying = _isPlaying || _audioQueue.isNotEmpty || state.isAnimationPlaying;
     
@@ -448,8 +498,42 @@ class AudioNotifier extends BaseNotifier<AudioState> {
       );
     }
   }
+  
+  void _stopSoloudPlayback({bool silent = false}) {
+    final wasPlaying = _streamHandle != null || state.isAnimationPlaying;
+    
+    if (_streamHandle != null) {
+      try {
+        _soloud.stop(_streamHandle!);
+        _streamHandle = null;
+        debugPrint('🛑 Stopped SoLoud playback');
+      } catch (e) {
+        debugPrint('Error stopping SoLoud playback: $e');
+      }
+    }
+    
+    _totalAudioBytes = 0;
+    
+    if (state.isAnimationPlaying) {
+      state = state.copyWith(isAnimationPlaying: false);
+    }
+    
+    if (wasPlaying && !silent) {
+      debugPrint('🛑 SoLoud audio playback stopped');
+    }
+  }
 
   Future<void> _playPcmChunk(Uint8List pcmData) async {
+    return await runSafely(() async {
+      if (_usePcmSound) {
+        await _playPcmChunkWithPcmSound(pcmData);
+      } else {
+        await _playPcmChunkWithSoloud(pcmData);
+      }
+    });
+  }
+  
+  Future<void> _playPcmChunkWithPcmSound(Uint8List pcmData) async {
     return await runSafely(() async {
       if (!_pcmSoundInitialized) {
         await _initializeAudio();
@@ -594,6 +678,93 @@ class AudioNotifier extends BaseNotifier<AudioState> {
       }
     });
   }
+  
+  Future<void> _playPcmChunkWithSoloud(Uint8List pcmData) async {
+    if (_bufferStream == null) {
+      debugPrint('⚠️ Buffer stream not initialized, initializing...');
+      await _initializeAudio();
+      if (_bufferStream == null) {
+        debugPrint('❌ Failed to initialize buffer stream');
+        return;
+      }
+    }
+
+    if (!_soloudInitialized) {
+      debugPrint('⚠️ SoLoud not initialized, initializing now...');
+      await _initializeAudio();
+    }
+
+    // Add PCM16 data to the buffer stream FIRST
+    try {
+      _soloud.addAudioDataStream(_bufferStream!, pcmData);
+      debugPrint('✅ Added ${pcmData.length} bytes to audio stream');
+    } catch (e) {
+      debugPrint('❌ Error adding audio data to stream: $e');
+      try {
+        await _initializeAudio();
+        _soloud.addAudioDataStream(_bufferStream!, pcmData);
+        debugPrint('✅ Retried adding audio data after reinitialization');
+      } catch (retryError) {
+        debugPrint('❌ Error retrying audio data: $retryError');
+        return;
+      }
+    }
+
+    // Start playing if not already playing (after adding first chunk)
+    if (_streamHandle == null) {
+      try {
+        _soloud.setGlobalVolume(1.0);
+        debugPrint('🔊 Set global volume to 1.0 before playback');
+
+        await Future.delayed(const Duration(milliseconds: 150));
+
+        _streamHandle = await _soloud.play(_bufferStream!);
+        debugPrint('📢 Started PCM16 stream playback, handle: $_streamHandle');
+
+        if (_streamHandle != null) {
+          _soloud.setVolume(_streamHandle!, 1.0);
+          _soloud.setPan(_streamHandle!, 0.0);
+          debugPrint('🎵 Playback started successfully');
+        } else {
+          debugPrint('⚠️ Stream handle is null after play() call');
+        }
+      } catch (e) {
+        debugPrint('❌ Error starting playback: $e');
+        try {
+          await _initializeAudio();
+          _soloud.setGlobalVolume(1.0);
+          await Future.delayed(const Duration(milliseconds: 150));
+          _streamHandle = await _soloud.play(_bufferStream!);
+          if (_streamHandle != null) {
+            _soloud.setVolume(_streamHandle!, 1.0);
+            _soloud.setPan(_streamHandle!, 0.0);
+            debugPrint('📢 Retried playback after reinitialization');
+          }
+        } catch (retryError) {
+          debugPrint('❌ Error in playback retry: $retryError');
+        }
+      }
+    }
+
+    // Track total audio bytes and calculate duration
+    _totalAudioBytes += pcmData.length;
+    final durationSeconds = (_totalAudioBytes / 2) / _sampleRate;
+    
+    // Set completion timer
+    if (durationSeconds.isFinite && durationSeconds > 0) {
+      _audioCompletionTimer?.cancel();
+      _audioCompletionTimer = Timer(
+        Duration(milliseconds: (durationSeconds * 1000).round() + 100),
+        () {
+          if (state.isAnimationPlaying) {
+            state = state.copyWith(isAnimationPlaying: false);
+          }
+        },
+      );
+    }
+    
+    debugPrint('📢 Added PCM16 chunk to stream (${pcmData.length} bytes, total: $_totalAudioBytes bytes)');
+  }
 
   void _handelStreamedResponse(Map<String, dynamic> jsonData) {
     final response = jsonData['response'] as String?;
@@ -674,6 +845,19 @@ class AudioNotifier extends BaseNotifier<AudioState> {
       }
 
       if (state.isRecording) return;
+      
+      // Ensure audio is initialized before starting recording
+      try {
+        await _initializeAudio();
+      } catch (e) {
+        developer.log(
+          '❌ Error initializing audio before recording: $e',
+          name: 'AudioNotifier',
+          error: e,
+        );
+        setStatusMessage = 'Failed to initialize audio: $e';
+        return;
+      }
 
       setStatusMessage = 'Starting audio stream...';
       _clearStreamedResponse();
@@ -691,6 +875,24 @@ class AudioNotifier extends BaseNotifier<AudioState> {
       _webSocketManager.send(jsonEncode(startEvent.toJson()));
 
       try {
+        // Ensure recorder is stopped and in a clean state before re-initializing
+        try {
+          _recorder.stop();
+        } catch (e) {
+          // Ignore - recorder might not be running
+        }
+        
+        // Initialize the recorder before starting
+        await _recorder.init(
+          format: PCMFormat.s16le,
+          sampleRate: _sampleRate,
+          channels: RecorderChannels.mono,
+        );
+        developer.log('✅ Recorder initialized before starting', name: 'AudioNotifier');
+        
+        // Small delay to ensure initialization completes on native side
+        await Future.delayed(const Duration(milliseconds: 100));
+        
         _recorder.start();
         _recorder.startStreamingData();
         state = state.copyWith(isStreamingData: true);
@@ -738,6 +940,15 @@ class AudioNotifier extends BaseNotifier<AudioState> {
         _recorder.stopStreamingData();
         state = state.copyWith(isStreamingData: false);
       }
+      
+      // Stop the recorder to ensure it's in a clean state
+      try {
+        _recorder.stop();
+        developer.log('✅ Recorder stopped', name: 'AudioNotifier');
+      } catch (e) {
+        developer.log('⚠️ Error stopping recorder: $e', name: 'AudioNotifier');
+      }
+      
       await _audioInputSubscription?.cancel();
       _audioInputSubscription = null;
 
@@ -833,9 +1044,40 @@ class AudioNotifier extends BaseNotifier<AudioState> {
     _fallbackFeedTimer?.cancel();
     _fallbackFeedTimer = null;
 
-    _cleanupPcmSound();
+    if (_usePcmSound) {
+      _cleanupPcmSound();
+    } else {
+      _cleanupSoloud();
+    }
     _webSocketManager.dispose();
     _uiEventController.close();
+  }
+
+  Future<void> _cleanupSoloud() async {
+    if (_soloudInitialized) {
+      try {
+        if (_streamHandle != null) {
+          try {
+            await _soloud.stop(_streamHandle!);
+          } catch (e) {
+            debugPrint('Error stopping SoLoud stream: $e');
+          }
+          _streamHandle = null;
+        }
+        if (_bufferStream != null) {
+          try {
+            await _soloud.disposeSource(_bufferStream!);
+          } catch (e) {
+            debugPrint('Error disposing SoLoud buffer stream: $e');
+          }
+          _bufferStream = null;
+        }
+        _soloudInitialized = false;
+        debugPrint('✅ SoLoud sources disposed');
+      } catch (e) {
+        debugPrint('Error disposing SoLoud: $e');
+      }
+    }
   }
 
   Future<void> _cleanupPcmSound() async {

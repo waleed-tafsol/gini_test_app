@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,7 +8,6 @@ import '../../utils/enums.dart';
 import '../../view_model/notifiers/audio_notifier.dart';
 import '../widgets/animated_wrapper.dart';
 import 'audio_page.dart';
-import 'human_model_view.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -228,16 +225,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 : MediaQuery.of(context).size.width;
                             return GestureDetector(
                               onTap: () {
-                                audioNotifier.setScreenType(
-                                  ScreenType.humanModel,
-                                );
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        const HumanModelView(),
-                                  ),
-                                );
+                                // audioNotifier.setScreenType(
+                                //   ScreenType.humanModel,
+                                // );
+                                // Navigator.push(
+                                //   context,
+                                //   MaterialPageRoute(
+                                //     builder: (context) =>
+                                //         const HumanModelView(),
+                                //   ),
+                                // );
                               },
                               child: GlassContainer(
                                 width: width,
