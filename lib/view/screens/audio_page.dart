@@ -1,14 +1,13 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import '../../utils/glass_container.dart';
+import 'package:tafsol_genie_app/models/ai_chat_messages.dart';
 
-import '../../utils/screen_util_helper.dart';
 import '../../view_model/notifiers/audio_notifier.dart';
 import '../widgets/animated_wrapper.dart';
+import '../widgets/auto_height_container.dart';
 import '../widgets/bottom_button.dart';
+import '../widgets/chat_message.dart';
 
 class AudioPage extends StatefulWidget {
   const AudioPage({super.key});
@@ -33,10 +32,7 @@ class _AudioPageState extends State<AudioPage> {
         children: [
           // Background image
           Positioned.fill(
-            child: Image.asset(
-              'assets/background4.jpg',
-              fit: BoxFit.cover,
-            ),
+            child: Image.asset('assets/background5.jpg', fit: BoxFit.cover),
           ),
           // Backdrop filter with blur
           Positioned.fill(
@@ -53,163 +49,15 @@ class _AudioPageState extends State<AudioPage> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                      // Player Status Card - Use Selector to only rebuild when status changes
-                      _buildPlayerStatusCard(),
-                      SizedBox(height: 20.h),
-                      // Messages list - using Selector to only rebuild when messages change
-                      Expanded(
-                        child: RepaintBoundary(
-                          child: Consumer(
-                            builder: (context, ref, child) {
-                              final messages = ref.watch(
-                                audioProvider.select(
-                                  (state) => state.messages,
-                                ),
-                              );
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: messages.isEmpty
-                                        ? Center(
-                                            child: Text(
-                                              'No messages yet',
-                                              style: TextStyle(
-                                                color: Colors.white
-                                                    .withValues(alpha: 0.7),
-                                                fontSize: 14,
-                                              ),
-                                            ),
-                                          )
-                                        : Builder(
-                                            builder: (context) {
-                                              // Show messages in normal order (oldest at top, newest at bottom)
-                                              return ListView.builder(
-                                                controller: _scrollController,
-                                                cacheExtent: 1000,
-                                                padding: EdgeInsets.symmetric(
-                                                  // horizontal: 16,
-                                                  vertical: 12.h,
-                                                ),
-                                                itemCount: messages.length,
-                                                itemBuilder: (context, index) {
-                                                  // index 0 = oldest message (at top), last index = latest (at bottom)
-                                                  final message =
-                                                      messages[index];
-                                                  final isUser =
-                                                      message.role == 'user';
-                                                  final messageKey =
-                                                      'msg_$index';
-
-                                                  return Padding(
-                                                    key: ValueKey(messageKey),
-                                                    padding: EdgeInsets.only(
-                                                      bottom: 12.h,
-                                                    ),
-                                                    child: Row(
-                                                      mainAxisAlignment:
-                                                          isUser
-                                                          ? MainAxisAlignment
-                                                                .start
-                                                          : MainAxisAlignment
-                                                                .end,
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      children: [
-                                                        if (!isUser) Spacer(),
-                                                        Flexible(
-                                                          flex: 2,
-                                                          child: IntrinsicHeight(
-                                                            child: GlassContainer(
-                                                              borderRadius: BorderRadius.circular(
-                                                                ScreenUtilHelper.safeRadius(40.0, 40.0),
-                                                              ),
-                                                              gradient: LinearGradient(
-                                                                colors: [
-                                                                  Colors.white.withOpacity(0.40),
-                                                                  Colors.white.withOpacity(0.10),
-                                                                ],
-                                                                begin: Alignment.topLeft,
-                                                                end: Alignment.bottomRight,
-                                                              ),
-                                                              borderGradient: LinearGradient(
-                                                                colors: [
-                                                                  Colors.white.withOpacity(0.60),
-                                                                  Colors.white.withOpacity(0.10),
-                                                                ],
-                                                                begin: Alignment.topLeft,
-                                                                end: Alignment.bottomRight,
-                                                              ),
-                                                              blur: 15,
-                                                              borderWidth: 1.0,
-                                                              isFrostedGlass: true,
-                                                              frostedOpacity: 0.12,
-                                                              child: Padding(
-                                                                padding: EdgeInsets.symmetric(
-                                                                  horizontal:
-                                                                      20.w,
-                                                                  vertical:
-                                                                      10.h,
-                                                                ),
-                                                                child: Column(
-                                                                  crossAxisAlignment:
-                                                                      CrossAxisAlignment
-                                                                          .start,
-                                                                  mainAxisSize:
-                                                                      MainAxisSize
-                                                                          .min,
-                                                                  children: [
-                                                                    Text(
-                                                                      isUser
-                                                                          ? 'You'
-                                                                          : 'AI',
-                                                                      style: TextStyle(
-                                                                        fontSize:
-                                                                            11.sp,
-                                                                        fontWeight:
-                                                                            FontWeight.w600,
-                                                                        color:
-                                                                            Colors.white,
-                                                                        letterSpacing:
-                                                                            0.5.w,
-                                                                      ),
-                                                                    ),
-                                                                    SizedBox(
-                                                                      height:
-                                                                          6.h,
-                                                                    ),
-                                                                    Text(
-                                                                      message
-                                                                          .content,
-                                                                      style: TextStyle(
-                                                                        fontSize:
-                                                                            14.sp,
-                                                                        color:
-                                                                            Colors.white,
-                                                                      ),
-                                                                    ),
-                                                                  ],
-                                                                ),
-                                                              ),
-                                                            ),
-                                                          ),
-                                                        ),
-                                                        if (isUser) Spacer(),
-                                                      ],
-                                                    ),
-                                                  );
-                                                },
-                                              );
-                                            },
-                                          ),
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
-                        ),
-                      ),
+                            // Player Status Card - Use Selector to only rebuild when status changes
+                            _buildPlayerStatusCard(),
+                            SizedBox(height: 20.h),
+                            // Messages list - using Selector to only rebuild when messages change
+                            Expanded(
+                              child: RepaintBoundary(
+                                child: _buildChatMessages(),
+                              ),
+                            ),
                           ],
                         ),
                         Positioned(
@@ -222,11 +70,56 @@ class _AudioPageState extends State<AudioPage> {
                     );
                   },
                 ),
+              ),
             ),
-                        ),
           ),
         ],
       ),
+    );
+  }
+
+  Consumer _buildChatMessages() {
+    return Consumer(
+      builder: (context, ref, child) {
+        final state = ref.watch(
+          audioProvider.select(
+            (state) => (state.messages, state.streamedResponse),
+          ),
+        );
+        final messages = state.$1;
+        final streamedResponse = state.$2;
+        return messages.isEmpty
+            ? Center(
+                child: Text(
+                  'No messages yet',
+                  style: TextStyle(color: Colors.black87, fontSize: 14),
+                ),
+              )
+            : ListView(
+                controller: ref.read(audioProvider.notifier).scrollController,
+                padding: EdgeInsets.only(bottom: 100.h),
+                reverse: true,
+                children: [
+                  if (streamedResponse != null)
+                    ChatMessage(
+                      message: AiChatMessages(
+                        role: 'ai',
+                        content: streamedResponse,
+                      ),
+                    ),
+                  for (final message in messages) ChatMessage(message: message),
+                ],
+              );
+        // : ListView.builder(
+        //     controller: _scrollController,
+        //     cacheExtent: 1000,
+        //     padding: EdgeInsets.symmetric(vertical: 12.h),
+        //     itemCount: messages.length,
+        //     itemBuilder: (context, index) {
+        //       return ChatMessage(message: messages[index]);
+        //     },
+        //   );
+      },
     );
   }
 
@@ -246,118 +139,92 @@ class _AudioPageState extends State<AudioPage> {
             return AnimatedWrapper(
               animationType: AnimationType.fadeIn,
               duration: const Duration(milliseconds: 500),
-              child: IntrinsicHeight(
-                child: GlassContainer(
-                  borderRadius: BorderRadius.circular(
-                    ScreenUtilHelper.safeRadius(50.0, 50.0),
+              child: AutoHeightGlassContainer(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 30.0.w,
+                    vertical: 20.h,
                   ),
-                  gradient: LinearGradient(
-                    colors: [
-                      Colors.white.withOpacity(0.40),
-                      Colors.white.withOpacity(0.10),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderGradient: LinearGradient(
-                    colors: [
-                      Colors.white.withOpacity(0.60),
-                      Colors.white.withOpacity(0.10),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  blur: 15,
-                  borderWidth: 1.0,
-                  isFrostedGlass: true,
-                  frostedOpacity: 0.12,
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 30.0.w,
-                      vertical: 20.h,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          spacing: 10.w,
-                          children: [
-                            GestureDetector(
-                              onTap: Navigator.of(context).pop,
-                              child: SizedBox(
-                                width: 35.w,
-                                child: Icon(
-                                  Icons.arrow_back,
-                                  color: Colors.white,
-                                ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        spacing: 10.w,
+                        children: [
+                          GestureDetector(
+                            onTap: Navigator.of(context).pop,
+                            child: SizedBox(
+                              width: 35.w,
+                              child: Icon(
+                                Icons.arrow_back,
+                                color: Colors.black87,
                               ),
                             ),
-                            Text(
-                              'Player Status',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 18.sp,
-                                color: Colors.white,
-                                letterSpacing: 0.5.w,
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 12.h),
-                        // Recording status
-                        Row(
-                          children: [
-                            SizedBox(width: 45.w),
-                            Container(
-                              width: 12.w,
-                              height: 12.w,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: isRecording ? Colors.green : Colors.grey,
-                              ),
-                            ),
-                            SizedBox(width: 8.w),
-                            Text(
-                              isRecording
-                                  ? 'Live - Streaming to WebSocket'
-                                  : 'Stopped',
-                              style: TextStyle(
-                                color: isRecording
-                                    ? Colors.green
-                                    : Colors.grey[300],
-                                fontSize: 14.sp,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                        // Streamed response
-                        if (streamedResponse?.isNotEmpty ?? false) ...[
-                          SizedBox(height: 16.h),
-                          Container(
-                            height: 1.h,
-                            color: Colors.white.withValues(alpha: 0.3),
                           ),
-                          SizedBox(height: 12.h),
                           Text(
-                            'Streaming Response:',
+                            'Player Status',
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
-                              fontSize: 12.sp,
-                              color: Colors.white.withValues(alpha: 0.8),
-                            ),
-                          ),
-                          SizedBox(height: 8.h),
-                          Text(
-                            streamedResponse!,
-                            style: TextStyle(
-                              fontSize: 14.sp,
-                              color: Colors.white,
+                              fontSize: 18.sp,
+                              color: Colors.black87,
+                              letterSpacing: 0.5.w,
                             ),
                           ),
                         ],
-                      ],
-                    ),
+                      ),
+                      SizedBox(height: 12.h),
+                      // Recording status
+                      Row(
+                        children: [
+                          SizedBox(width: 45.w),
+                          Container(
+                            width: 12.w,
+                            height: 12.w,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isRecording ? Colors.green : Colors.grey,
+                            ),
+                          ),
+                          SizedBox(width: 8.w),
+                          Text(
+                            isRecording
+                                ? 'Live - Streaming to WebSocket'
+                                : 'Stopped',
+                            style: TextStyle(
+                              color: isRecording ? Colors.green : Colors.black,
+                              fontSize: 14.sp,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                      // Streamed response
+                      // if (streamedResponse?.isNotEmpty ?? false) ...[
+                      //   SizedBox(height: 16.h),
+                      //   Container(
+                      //     height: 1.h,
+                      //     color: Colors.white.withValues(alpha: 0.3),
+                      //   ),
+                      //   SizedBox(height: 12.h),
+                      //   Text(
+                      //     'Streaming Response:',
+                      //     style: TextStyle(
+                      //       fontWeight: FontWeight.w600,
+                      //       fontSize: 12.sp,
+                      //       color: Colors.black87,
+                      //     ),
+                      //   ),
+                      //   SizedBox(height: 8.h),
+                      //   Text(
+                      //     streamedResponse!,
+                      //     style: TextStyle(
+                      //       fontSize: 14.sp,
+                      //       color: Colors.black87,
+                      //     ),
+                      //   ),
+                      // ],
+                    ],
                   ),
                 ),
               ),

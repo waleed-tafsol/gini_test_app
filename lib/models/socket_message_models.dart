@@ -63,10 +63,12 @@ class AudioEndMessageModel {
   final String type;
   final String sessionId;
 
-  AudioEndMessageModel({this.type = "end", required this.sessionId});
+  final String clientType;
+
+  AudioEndMessageModel({this.type = "end", required this.sessionId, this.clientType = "mobile"});
 
   Map<String, dynamic> toJson() {
-    return {'type': type, 'session_id': sessionId};
+    return {'type': type, 'session_id': sessionId, 'client_type': clientType};
   }
 }
 
@@ -81,13 +83,33 @@ class InterruptEventModel {
     return {'type': type, 'session_id': sessionId, 'timestamp': timestamp};
   }
 }
+//
+// class SessionGeneratorModel {
+//   final String type;
+//
+//   SessionGeneratorModel({ required this.type});
+//
+//   Map<String, dynamic> toJson() {
+//     return {'type': type};
+//   }
+// }
 
-class SessionGeneratorModel {
+class HandshakeModel {
   final String type;
+  final String sessionId;
+  final String clientType;
 
-  SessionGeneratorModel({ required this.type});
+  HandshakeModel({
+    this.type = "handshake",
+    required this.sessionId,
+    this.clientType = "mobile",
+  });
 
   Map<String, dynamic> toJson() {
-    return {'type': type};
+    return {
+      'type': type,
+      'session_id': sessionId,
+      'client_type': clientType,
+    };
   }
 }

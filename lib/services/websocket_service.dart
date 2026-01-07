@@ -31,7 +31,14 @@ class WebSocketService {
 
   Future<void> connect() async {
     try {
-      _channel = WebSocketChannel.connect(Uri.parse(url));
+      developer.log('🔌 [WebSocket] Attempting to connect to: $url', name: 'WebSocketService');
+      
+      _channel = WebSocketChannel.connect(
+        Uri.parse(url),
+      );
+
+      // Wait a moment to check if connection was successful
+      await Future.delayed(const Duration(milliseconds: 100));
 
       _socketSubscription = _channel!.stream.listen(
         (data) {
@@ -93,11 +100,21 @@ class WebSocketService {
       );
 
       _isConnected = true;
+      developer.log('✅ [WebSocket] Connected successfully', name: 'WebSocketService');
       if (onStatusChanged != null) {
         onStatusChanged!('Connected to WebSocket');
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       _isConnected = false;
+      developer.log(
+        '❌ [WebSocket] Connection failed: $e',
+        name: 'WebSocketService',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      if (onError != null) {
+        onError!(e);
+      }
       if (onStatusChanged != null) {
         onStatusChanged!('Failed to connect: $e');
       }

@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 
 class GlassContainer extends StatelessWidget {
   final Widget child;
+  final double? width;
+  final double? height;
   final BorderRadius? borderRadius;
-  final BoxShape? shape;
   final Gradient? gradient;
   final Gradient? borderGradient;
   final double blur;
@@ -18,8 +19,9 @@ class GlassContainer extends StatelessWidget {
   const GlassContainer({
     super.key,
     required this.child,
+    this.width,
+    this.height,
     this.borderRadius,
-    this.shape,
     this.gradient,
     this.borderGradient,
     this.blur = 15.0,
@@ -29,16 +31,12 @@ class GlassContainer extends StatelessWidget {
     this.shadowColor,
     this.elevation,
     this.alignment,
-  }) : assert(
-          shape == null || borderRadius == null,
-          'Cannot provide both shape and borderRadius',
-        );
+  });
 
   @override
   Widget build(BuildContext context) {
     final decoration = BoxDecoration(
-      borderRadius: shape == BoxShape.circle ? null : (borderRadius ?? BorderRadius.zero),
-      shape: shape ?? BoxShape.rectangle,
+      borderRadius: borderRadius ?? BorderRadius.zero,
       gradient: gradient ??
           LinearGradient(
             colors: [
@@ -68,12 +66,12 @@ class GlassContainer extends StatelessWidget {
           : null,
     );
 
-    return Container(
+    Widget container = Container(
+      width: width,
+      height: height,
       decoration: borderGradient != null
           ? BoxDecoration(
-              borderRadius: shape == BoxShape.circle
-                  ? BorderRadius.circular(1000)
-                  : (borderRadius ?? BorderRadius.zero),
+              borderRadius: borderRadius ?? BorderRadius.zero,
               gradient: borderGradient,
             )
           : null,
@@ -81,18 +79,14 @@ class GlassContainer extends StatelessWidget {
       child: Container(
         decoration: decoration,
         child: ClipRRect(
-          borderRadius: shape == BoxShape.circle
-              ? BorderRadius.circular(1000)
-              : (borderRadius ?? BorderRadius.zero),
+          borderRadius: borderRadius ?? BorderRadius.zero,
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
             child: Container(
               decoration: isFrostedGlass
                   ? BoxDecoration(
                       color: Colors.white.withOpacity(frostedOpacity),
-                      borderRadius: shape == BoxShape.circle
-                          ? BorderRadius.circular(1000)
-                          : (borderRadius ?? BorderRadius.zero),
+                      borderRadius: borderRadius ?? BorderRadius.zero,
                     )
                   : null,
               child: alignment != null
@@ -106,6 +100,12 @@ class GlassContainer extends StatelessWidget {
         ),
       ),
     );
+
+    return container;
   }
 }
+
+
+
+
 

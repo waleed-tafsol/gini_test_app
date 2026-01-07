@@ -22,7 +22,6 @@ class _BottomButtonState extends ConsumerState<BottomButton>
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
     _recordingAnimationController = AnimationController(
       vsync: this,
@@ -136,7 +135,7 @@ class _BottomButtonState extends ConsumerState<BottomButton>
                                       ),
                                       child: Icon(
                                         Icons.mic,
-                                        color: Colors.white,
+                                        color: Colors.black87,
                                         size: 30.sp,
                                       ),
                                     ),
@@ -184,7 +183,7 @@ class _BottomButtonState extends ConsumerState<BottomButton>
                               child: Center(
                                 child: Container(
                                   width: 60.w,
-                                  height: 60.h,
+                                  height: 60.w,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     color: state.$2
@@ -194,7 +193,7 @@ class _BottomButtonState extends ConsumerState<BottomButton>
                                   child: Icon(
                                     Icons.mic,
                                     color: Colors.white,
-                                    size: 30.sp,
+                                    size: 30.w,
                                   ),
                                 ),
                               ),
@@ -254,7 +253,7 @@ class _BottomButtonState extends ConsumerState<BottomButton>
                             child: Icon(
                               Icons.pause_presentation,
                               color: Colors.white,
-                              size: 30.sp,
+                              size: 30.w,
                             ),
                           ),
                         ),

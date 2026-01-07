@@ -32,16 +32,19 @@ dependencies:
     sdk: flutter
   web_socket_channel: ^3.0.3
   permission_handler: ^12.0.1
-  flutter_soloud: ^3.4.8
+  flutter_pcm_sound: ^3.3.3 # Real-time PCM audio playback (iOS and macOS only)
+  flutter_soloud: ^3.4.8 # Audio playback for Windows, Android, and Web
   flutter_recorder: ^1.1.2 # Audio recording package with better cross-platform support
   audio_session: ^0.2.2 # Audio session management for iOS and Android
-  flutter_3d_controller: ^2.3.0
+ # flutter_3d_controller: ^2.3.0
   camera: ^0.11.3
   cupertino_icons: ^1.0.8
   flutter_riverpod: ^3.1.0
   get_it: ^9.2.0
   fluttertoast: ^9.0.0
   flutter_screenutil: ^5.9.3
+  http: ^1.2.0
+
 
 dev_dependencies:
   flutter_test:

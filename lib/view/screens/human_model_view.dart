@@ -1,3 +1,4 @@
+/*
 import 'dart:async';
 
 import 'package:camera/camera.dart';
@@ -375,3 +376,4 @@ class _HumanModelViewState extends State<HumanModelView> {
     );
   }
 }
+*/

@@ -21,7 +21,7 @@ class AudioState {
     this.statusMessage = 'Ready',
     this.streamedResponse,
     this.isConnected = false,
-    this.sessionId = '222323',
+    this.sessionId = '',
   });
 
   AudioState copyWith({
@@ -45,6 +45,20 @@ class AudioState {
       streamedResponse: streamedResponse ?? this.streamedResponse,
       isConnected: isConnected ?? this.isConnected,
       sessionId: sessionId ?? this.sessionId,
+    );
+  }
+
+  AudioState copyWithNull({bool streamedResponse = false}) {
+    return AudioState(
+      type: type,
+      isAnimationPlaying: isAnimationPlaying,
+      messages: messages,
+      isStreamingData: isStreamingData,
+      isRecording: isRecording,
+      statusMessage: statusMessage,
+      streamedResponse: streamedResponse ? null : this.streamedResponse,
+      isConnected: isConnected,
+      sessionId: sessionId,
     );
   }
 }

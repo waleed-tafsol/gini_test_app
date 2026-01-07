@@ -8,4 +8,6 @@ enum MessageType {
   ttsComplete,
   streamedResponse,
   finalTranscript,
+  handshake,
+  handshakeAcknowledged,
 }
