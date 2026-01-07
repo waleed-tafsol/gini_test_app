@@ -366,7 +366,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 },
                                 child: GlassContainer(
                                   width: width,
-                                  // height: 70.h,
+                                  height: 60.h,
                                   borderRadius: BorderRadius.circular(12.0.r),
                                   gradient: LinearGradient(
                                     colors: [
