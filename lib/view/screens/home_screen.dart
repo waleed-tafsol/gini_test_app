@@ -1,9 +1,12 @@
+import 'dart:convert';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:http/http.dart' as http;
 import '../../utils/glass_container.dart';
 
+import '../../models/sessions_response_model.dart';
 import '../../utils/enums.dart';
 import '../../view_model/notifiers/audio_notifier.dart';
 import '../widgets/animated_wrapper.dart';
@@ -29,6 +32,279 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
   }
 
+  Future<void> _fetchAndShowSessionIds(
+    BuildContext context,
+    AudioNotifier audioNotifier,
+  ) async {
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // Make API call
+      final response = await http.get(
+        Uri.parse('https://genie-api-test.devcustomprojects.online/api/list-sessions'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw Exception('Request timeout');
+        },
+      );
+
+      // Close loading indicator
+      if (context.mounted) {
+        Navigator.of(context).pop();
+      }
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final sessionsResponse = SessionsResponse.fromJson(data);
+
+        if (sessionsResponse.sessions.isEmpty) {
+          // Show message if no session IDs found
+          if (context.mounted) {
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('No Sessions'),
+                content: const Text('No session IDs found.'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
+            );
+          }
+        } else {
+          // Show dialog with session IDs
+          if (context.mounted) {
+            await _showSessionIdDialog(
+              context,
+              sessionsResponse.sessions,
+              audioNotifier,
+            );
+          }
+        }
+      } else {
+        // Show error message
+        if (context.mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Error'),
+              content: Text('Failed to fetch session IDs: ${response.statusCode}'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Close loading indicator if still open
+      if (context.mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Show error message
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Error'),
+            content: Text('Failed to fetch session IDs: $e'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _showSessionIdDialog(
+    BuildContext context,
+    List<Session> sessions,
+    AudioNotifier audioNotifier,
+  ) async {
+    return showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.7,
+            maxWidth: MediaQuery.of(context).size.width * 0.9,
+          ),
+          child: GlassContainer(
+            width: MediaQuery.of(context).size.width * 0.9,
+            borderRadius: BorderRadius.circular(20.r),
+            gradient: LinearGradient(
+              colors: [
+                Colors.white.withOpacity(0.60),
+                Colors.white.withOpacity(0.10),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderGradient: LinearGradient(
+              colors: [
+                Colors.white.withOpacity(0.60),
+                Colors.white.withOpacity(0.10),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            blur: 15,
+            borderWidth: 1.0,
+            isFrostedGlass: true,
+            frostedOpacity: 0.12,
+            child: Padding(
+              padding: EdgeInsets.all(20.w),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Select Session ID',
+                        style: TextStyle(
+                          color: Colors.black87,
+                          fontSize: 20.sp,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          Icons.close,
+                          color: Colors.black87,
+                        ),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 16.h),
+                  Flexible(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: sessions.length,
+                      itemBuilder: (context, index) {
+                        final session = sessions[index];
+                        return InkWell(
+                          onTap: () {
+                            audioNotifier.setSessionId(session.sessionId);
+                            audioNotifier.callSessionId();
+                            Navigator.of(context).pop();
+                          },
+                          child: Container(
+                            margin: EdgeInsets.only(bottom: 8.h),
+                            padding: EdgeInsets.all(16.w),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12.r),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        session.name,
+                                        style: TextStyle(
+                                          color: Colors.black87,
+                                          fontSize: 14.sp,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                    Icon(
+                                      Icons.arrow_forward_ios,
+                                      color: Colors.black87,
+                                      size: 16.sp,
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: 4.h),
+                                Text(
+                                  session.sessionId,
+                                  style: TextStyle(
+                                    color: Colors.black87.withOpacity(0.7),
+                                    fontSize: 12.sp,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                ),
+                                SizedBox(height: 4.h),
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 8.w,
+                                        vertical: 4.h,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: session.state == 'idle'
+                                            ? Colors.green.withOpacity(0.2)
+                                            : Colors.orange.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(8.r),
+                                      ),
+                                      child: Text(
+                                        session.state.toUpperCase(),
+                                        style: TextStyle(
+                                          color: Colors.black87,
+                                          fontSize: 10.sp,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(width: 8.w),
+                                    Text(
+                                      '${session.clientCount} client(s)',
+                                      style: TextStyle(
+                                        color: Colors.black87.withOpacity(0.6),
+                                        fontSize: 11.sp,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final audioNotifier = ref.read(audioProvider.notifier);
@@ -39,19 +315,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           Positioned.fill(
             child: Image.asset(
               'assets/background5.jpg',
-              fit: BoxFit.cover,
+            fit: BoxFit.cover,
             ),
           ),
           Positioned.fill(
-            child: Consumer(
-            builder: (context, ref, child) {
-              final state = ref.watch(audioProvider);
-              return Padding(
+              child: Consumer(
+                builder: (context, ref, child) {
+                  final state = ref.watch(audioProvider);
+                  return Padding(
                 padding: EdgeInsets.all(20.0.h),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
                     SizedBox(height: 40.h),
                     // Huge circular connect button
                     Center(
@@ -83,8 +359,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 ? constraints.maxWidth
                                 : MediaQuery.of(context).size.width;
                             return GestureDetector(
-                              onTap: () {
-                                audioNotifier.callSessionId();
+                              onTap: () async {
+                                await _fetchAndShowSessionIds(context, audioNotifier);
                               },
                               child: GlassContainer(
                                 width: width,
@@ -120,14 +396,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         size: 22.sp,
                                       ),
                                       SizedBox(width: 10.w),
-                                      Text(
-                                        'Get Session ID',
-                                        style: TextStyle(
-                                          color: Colors.black87,
-                                          fontSize: 16.sp,
-                                          fontWeight: FontWeight.w600,
-                                          letterSpacing: 0.5.w,
-                                        ),
+                                      Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Get Session ID',
+                                            style: TextStyle(
+                                              color: Colors.black87,
+                                              fontSize: 16.sp,
+                                              fontWeight: FontWeight.w600,
+                                              letterSpacing: 0.5.w,
+                                            ),
+                                          ),
+                                          if(state.sessionId.isNotEmpty)
+                                            Text(
+                                              'Active Id: ${state.sessionId}',
+                                              style: TextStyle(
+                                                color: Colors.green,
+                                                fontSize: 12.sp,
+                                                fontWeight: FontWeight.w600,
+                                                letterSpacing: 0.5.w,
+                                              ),
+                                            ),
+                                        ],
                                       ),
                                     ],
                                   ),
@@ -200,10 +493,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                           fontSize: 16.sp,
                                           fontWeight: FontWeight.w600,
                                           letterSpacing: 0.5.w,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                              ),
+                            ),
+                          ],
+                        ),
                                 ),
                               ),
                             );
@@ -211,9 +504,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       ),
 
-                    SizedBox(height: 20.h),
+                  //  SizedBox(height: 20.h),
 
-                    // Human button
+                   /* // Human button
                     if (state.isConnected && state.sessionId.isNotEmpty)
                       AnimatedWrapper(
                         animationType: AnimationType.slideRight,
@@ -285,13 +578,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               ),
                             );
                           },
-                        ),
-                      ),
-                  ],
-                ),
-              );
-            },
                           ),
+                        ),*/
+                      ],
+                    ),
+                  );
+                },
+            ),
           ),
         ],
       ),

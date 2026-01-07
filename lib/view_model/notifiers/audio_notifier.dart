@@ -931,16 +931,18 @@ class AudioNotifier extends BaseNotifier<AudioState> {
 
   Future<void> stopStreamingAudio() async {
     return await runSafely(() async {
+      if (_usePcmSound) {
+        _cleanupPcmSound();
+      } else {
+        _cleanupSoloud();
+      }
       if (!state.isRecording) return;
-
       final endChatEvent = AudioEndMessageModel(sessionId: state.sessionId);
       _webSocketManager.send(jsonEncode(endChatEvent.toJson()));
-
       if (state.isStreamingData) {
         _recorder.stopStreamingData();
         state = state.copyWith(isStreamingData: false);
       }
-      
       // Stop the recorder to ensure it's in a clean state
       try {
         _recorder.stop();
@@ -964,8 +966,21 @@ class AudioNotifier extends BaseNotifier<AudioState> {
   }
 
   void callSessionId() {
-    final startEvent = SessionGeneratorModel(type: 'session_id');
-    _webSocketManager.send(jsonEncode(startEvent.toJson()));
+    if (state.sessionId.isEmpty) {
+      developer.log(
+        '⚠️ Cannot send handshake: sessionId is empty',
+        name: 'AudioNotifier',
+      );
+      return;
+    }
+    final handshakeEvent = HandshakeModel(
+      sessionId: state.sessionId,
+    );
+    _webSocketManager.send(jsonEncode(handshakeEvent.toJson()));
+    developer.log(
+      '🤝 [Handshake] Sent handshake for session: ${state.sessionId}',
+      name: 'AudioNotifier',
+    );
   }
 
   Future<void> interruptStreamingAudio() async {

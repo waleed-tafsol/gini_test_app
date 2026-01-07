@@ -248,7 +248,7 @@ class _AudioPageState extends State<AudioPage> {
                             style: TextStyle(
                               color: isRecording
                                   ? Colors.green
-                                  : Colors.grey[300],
+                                  : Colors.black,
                               fontSize: 14.sp,
                               fontWeight: FontWeight.w500,
                             ),
