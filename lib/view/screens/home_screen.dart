@@ -160,16 +160,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             borderRadius: BorderRadius.circular(20.r),
             gradient: LinearGradient(
               colors: [
-                Colors.white.withOpacity(0.60),
-                Colors.white.withOpacity(0.10),
+                Colors.white.withValues(alpha: 0.60),
+                Colors.white.withValues(alpha: 0.10),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderGradient: LinearGradient(
               colors: [
-                Colors.white.withOpacity(0.60),
-                Colors.white.withOpacity(0.10),
+                Colors.white.withValues(alpha: 0.60),
+                Colors.white.withValues(alpha: 0.10),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -218,10 +218,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             margin: EdgeInsets.only(bottom: 8.h),
                             padding: EdgeInsets.all(16.w),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
+                              color: Colors.white.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(12.r),
                               border: Border.all(
-                                color: Colors.white.withOpacity(0.3),
+                                color: Colors.white.withValues(alpha: 0.3),
                                 width: 1,
                               ),
                             ),
@@ -251,7 +251,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 Text(
                                   session.sessionId,
                                   style: TextStyle(
-                                    color: Colors.black87.withOpacity(0.7),
+                                    color: Colors.black87.withValues(
+                                      alpha: 0.7,
+                                    ),
                                     fontSize: 12.sp,
                                     fontWeight: FontWeight.w400,
                                   ),
@@ -266,8 +268,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       ),
                                       decoration: BoxDecoration(
                                         color: session.state == 'idle'
-                                            ? Colors.green.withOpacity(0.2)
-                                            : Colors.orange.withOpacity(0.2),
+                                            ? Colors.green.withValues(
+                                                alpha: 0.2,
+                                              )
+                                            : Colors.orange.withValues(
+                                                alpha: 0.2,
+                                              ),
                                         borderRadius: BorderRadius.circular(
                                           8.r,
                                         ),
@@ -285,7 +291,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     Text(
                                       '${session.clientCount} client(s)',
                                       style: TextStyle(
-                                        color: Colors.black87.withOpacity(0.6),
+                                        color: Colors.black87.withValues(
+                                          alpha: 0.6,
+                                        ),
                                         fontSize: 11.sp,
                                       ),
                                     ),
@@ -370,16 +378,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   borderRadius: BorderRadius.circular(12.0.r),
                                   gradient: LinearGradient(
                                     colors: [
-                                      Colors.white.withOpacity(0.60),
-                                      Colors.white.withOpacity(0.10),
+                                      Colors.white.withValues(alpha: 0.60),
+                                      Colors.white.withValues(alpha: 0.10),
                                     ],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                   ),
                                   borderGradient: LinearGradient(
                                     colors: [
-                                      Colors.white.withOpacity(0.60),
-                                      Colors.white.withOpacity(0.10),
+                                      Colors.white.withValues(alpha: 0.60),
+                                      Colors.white.withValues(alpha: 0.10),
                                     ],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
@@ -465,16 +473,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   borderRadius: BorderRadius.circular(12.0.r),
                                   gradient: LinearGradient(
                                     colors: [
-                                      Colors.white.withOpacity(0.60),
-                                      Colors.white.withOpacity(0.10),
+                                      Colors.white.withValues(alpha: 0.60),
+                                      Colors.white.withValues(alpha: 0.10),
                                     ],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                   ),
                                   borderGradient: LinearGradient(
                                     colors: [
-                                      Colors.white.withOpacity(0.60),
-                                      Colors.white.withOpacity(0.10),
+                                      Colors.white.withValues(alpha: 0.60),
+                                      Colors.white.withValues(alpha: 0.10),
                                     ],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
@@ -543,16 +551,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 borderRadius: BorderRadius.circular(12.0.r),
                                 gradient: LinearGradient(
                                   colors: [
-                                    Colors.white.withOpacity(0.60),
-                                    Colors.white.withOpacity(0.10),
+                                    Colors.white.withValues(alpha:0.60),
+                                    Colors.white.withValues(alpha:0.10),
                                   ],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                 ),
                                 borderGradient: LinearGradient(
                                   colors: [
-                                    Colors.white.withOpacity(0.60),
-                                    Colors.white.withOpacity(0.10),
+                                    Colors.white.withValues(alpha:0.60),
+                                    Colors.white.withValues(alpha:0.10),
                                   ],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
@@ -635,7 +643,7 @@ class _CircularConnectButtonState extends State<_CircularConnectButton> {
                 height: 180.w,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.1),
+                  color: Colors.white.withValues(alpha: 0.1),
                 ),
                 child: Center(
                   child: Icon(
@@ -655,16 +663,16 @@ class _CircularConnectButtonState extends State<_CircularConnectButton> {
               borderRadius: BorderRadius.circular(90.w),
               gradient: LinearGradient(
                 colors: [
-                  Colors.white.withOpacity(0.40),
-                  Colors.white.withOpacity(0.10),
+                  Colors.white.withValues(alpha: 0.40),
+                  Colors.white.withValues(alpha: 0.10),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderGradient: LinearGradient(
                 colors: [
-                  Colors.white.withOpacity(0.60),
-                  Colors.white.withOpacity(0.10),
+                  Colors.white.withValues(alpha: 0.60),
+                  Colors.white.withValues(alpha: 0.10),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -673,7 +681,7 @@ class _CircularConnectButtonState extends State<_CircularConnectButton> {
               borderWidth: 1.0,
               elevation: 3.0,
               isFrostedGlass: true,
-              shadowColor: Colors.black.withOpacity(0.20),
+              shadowColor: Colors.black.withValues(alpha: 0.20),
               alignment: Alignment.center,
               frostedOpacity: 0.12,
               child: Center(
