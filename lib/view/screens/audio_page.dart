@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:tafsol_genie_app/models/ai_chat_messages.dart';
 
+import '../../models/ai_chat_messages.dart';
 import '../../view_model/notifiers/audio_notifier.dart';
 import '../widgets/animated_wrapper.dart';
 import '../widgets/auto_height_container.dart';
@@ -110,15 +110,6 @@ class _AudioPageState extends State<AudioPage> {
                   for (final message in messages) ChatMessage(message: message),
                 ],
               );
-        // : ListView.builder(
-        //     controller: _scrollController,
-        //     cacheExtent: 1000,
-        //     padding: EdgeInsets.symmetric(vertical: 12.h),
-        //     itemCount: messages.length,
-        //     itemBuilder: (context, index) {
-        //       return ChatMessage(message: messages[index]);
-        //     },
-        //   );
       },
     );
   }
@@ -128,14 +119,9 @@ class _AudioPageState extends State<AudioPage> {
       child: RepaintBoundary(
         child: Consumer(
           builder: (context, ref, child) {
-            final state = ref.watch(
-              audioProvider.select(
-                (state) => (state.isRecording, state.streamedResponse),
-              ),
+            final isRecording = ref.watch(
+              audioProvider.select((state) => state.isRecording),
             );
-            final isRecording = state.$1;
-            final streamedResponse = state.$2;
-
             return AnimatedWrapper(
               animationType: AnimationType.fadeIn,
               duration: const Duration(milliseconds: 500),
@@ -199,31 +185,6 @@ class _AudioPageState extends State<AudioPage> {
                           ),
                         ],
                       ),
-                      // Streamed response
-                      // if (streamedResponse?.isNotEmpty ?? false) ...[
-                      //   SizedBox(height: 16.h),
-                      //   Container(
-                      //     height: 1.h,
-                      //     color: Colors.white.withValues(alpha: 0.3),
-                      //   ),
-                      //   SizedBox(height: 12.h),
-                      //   Text(
-                      //     'Streaming Response:',
-                      //     style: TextStyle(
-                      //       fontWeight: FontWeight.w600,
-                      //       fontSize: 12.sp,
-                      //       color: Colors.black87,
-                      //     ),
-                      //   ),
-                      //   SizedBox(height: 8.h),
-                      //   Text(
-                      //     streamedResponse!,
-                      //     style: TextStyle(
-                      //       fontSize: 14.sp,
-                      //       color: Colors.black87,
-                      //     ),
-                      //   ),
-                      // ],
                     ],
                   ),
                 ),
