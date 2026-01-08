@@ -948,11 +948,13 @@ class AudioNotifier extends BaseNotifier<AudioState> {
       name: 'AudioNotifier',
     );
     if (fullResponse == null || fullResponse.isEmpty) {
-      addMessage(
-        AiChatMessages(role: 'ai', content: state.streamedResponse ?? ''),
-      );
-      _clearStreamedResponse();
+      if (state.streamedResponse != null && state.streamedResponse!.isNotEmpty) {
+        addMessage(
+          AiChatMessages(role: 'ai', content: state.streamedResponse ?? ''),
+        );
+      }
       addMessage(AiChatMessages(role: 'ai', content: 'Interrupted'));
+      _clearStreamedResponse();
     } else {
       _clearStreamedResponse();
       addMessage(AiChatMessages(role: 'ai', content: fullResponse));
