@@ -7,6 +7,7 @@ import 'dart:io' show Platform;
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
 // Platform-specific imports
 import 'package:flutter_pcm_sound/flutter_pcm_sound.dart';
 import 'package:flutter_recorder/flutter_recorder.dart';
@@ -33,14 +34,28 @@ class AudioNotifier extends BaseNotifier<AudioState> {
   // Platform detection
   bool get _usePcmSound => !kIsWeb && (Platform.isIOS || Platform.isMacOS);
 
+  // Check if audio is actually playing in either pcmSound or soloud
+  bool get isAudioPlaying {
+    if (_usePcmSound) {
+      // For pcmSound: check if playing flag is set or queue has data
+      return _isPlaying || _audioQueue.isNotEmpty;
+    } else {
+      // For soloud: check if stream handle exists (audio is playing)
+      return _streamHandle != null;
+    }
+  }
+
   // Audio playback state - flutter_pcm_sound (iOS/macOS)
   bool _pcmSoundInitialized = false;
   bool _isPlaying = false;
   final Queue<Uint8List> _audioQueue = Queue<Uint8List>();
   Timer? _audioCompletionTimer;
   Timer? _fallbackFeedTimer;
+  Timer? _ttsCompleteTimer;
   DateTime? _lastCallbackTime;
   DateTime? _fallbackTimerStartTime;
+  DateTime? _lastAudioChunkTime;
+  DateTime? _ttsCompleteTime;
 
   // Audio playback state - flutter_soloud (Windows/Android/Web)
   final SoLoud _soloud = SoLoud.instance;
@@ -274,9 +289,11 @@ class AudioNotifier extends BaseNotifier<AudioState> {
       debugPrint('🔊 Set global volume to 1.0');
 
       _bufferStream = _soloud.setBufferStream(
-        maxBufferSizeBytes: 1024 * 1024 * 10, // 10MB max buffer
+        maxBufferSizeBytes: 1024 * 1024 * 10,
+        // 10MB max buffer
         bufferingType: BufferingType.preserved,
-        bufferingTimeNeeds: 0.1, // 100ms buffer
+        bufferingTimeNeeds: 0.1,
+        // 100ms buffer
         sampleRate: _sampleRate,
         channels: Channels.mono,
         format: BufferType.s16le,
@@ -488,6 +505,19 @@ class AudioNotifier extends BaseNotifier<AudioState> {
     final pcmDataBase64 = jsonData['pcm_data'] as String?;
 
     if (pcmDataBase64 != null && pcmDataBase64.isNotEmpty) {
+      // Update last audio chunk time - this cancels the tts_complete timer
+      _lastAudioChunkTime = DateTime.now();
+
+      // Cancel the tts_complete timer since new chunks are arriving
+      _ttsCompleteTimer?.cancel();
+      _ttsCompleteTimer = null;
+
+      // Set animation playing state immediately when audio data arrives
+      // This ensures the interrupt button shows as soon as audio starts
+      if (!state.isAnimationPlaying) {
+        state = state.copyWith(isAnimationPlaying: true);
+      }
+
       // Don't stop current playback - just add new chunk to queue for continuous playback
       compute(
         base64Decode,
@@ -502,15 +532,15 @@ class AudioNotifier extends BaseNotifier<AudioState> {
     }
   }
 
-  void _stopCurrentPlayback({bool silent = false}) {
+  void _stopCurrentPlayback({bool silent = false, bool immediate = false}) {
     if (_usePcmSound) {
-      _stopPcmSoundPlayback(silent: silent);
+      _stopPcmSoundPlayback(silent: silent, immediate: immediate);
     } else {
-      _stopSoloudPlayback(silent: silent);
+      _stopSoloudPlayback(silent: silent, immediate: immediate);
     }
   }
 
-  void _stopPcmSoundPlayback({bool silent = false}) {
+  void _stopPcmSoundPlayback({bool silent = false, bool immediate = false}) {
     // Only log if there was actually playback happening
     final wasPlaying =
         _isPlaying || _audioQueue.isNotEmpty || state.isAnimationPlaying;
@@ -525,11 +555,32 @@ class AudioNotifier extends BaseNotifier<AudioState> {
     _totalAudioBytes = 0;
     _lastCallbackTime = null;
 
-    // Note: We don't release FlutterPcmSound here because:
-    // 1. It causes OSStatus -66628 errors when trying to feed data after release
-    // 2. Stopping data feed and clearing queue is sufficient to stop playback
-    // 3. The audio will stop naturally when the buffer empties
-    // If we need to release, it should be done in dispose() only
+    // For immediate stop (e.g., on interrupt), release the audio unit to stop playback instantly
+    if (immediate && _pcmSoundInitialized) {
+      try {
+        FlutterPcmSound.release()
+            .then((_) {
+              _pcmSoundInitialized = false;
+              developer.log(
+                '🛑 FlutterPcmSound released for immediate stop',
+                name: 'AudioNotifier',
+              );
+            })
+            .onError((err, stackTrace) {
+              developer.log(
+                'FlutterPcmSound.release error: $err',
+                error: err,
+                stackTrace: stackTrace,
+                name: 'AudioNotifier',
+              );
+            });
+      } catch (e) {
+        developer.log(
+          'Error releasing FlutterPcmSound: $e',
+          name: 'AudioNotifier',
+        );
+      }
+    }
 
     // Stop animation immediately
     if (state.isAnimationPlaying) {
@@ -539,13 +590,15 @@ class AudioNotifier extends BaseNotifier<AudioState> {
     // Only log if there was actual playback and not silent mode
     if (wasPlaying && !silent) {
       developer.log(
-        '🛑 Audio playback stopped (queue cleared, feeding stopped)',
+        immediate
+            ? '🛑 Audio playback stopped immediately (audio unit released)'
+            : '🛑 Audio playback stopped (queue cleared, feeding stopped)',
         name: 'AudioNotifier',
       );
     }
   }
 
-  void _stopSoloudPlayback({bool silent = false}) {
+  void _stopSoloudPlayback({bool silent = false, bool immediate = false}) {
     final wasPlaying = _streamHandle != null || state.isAnimationPlaying;
 
     if (_streamHandle != null) {
@@ -558,6 +611,19 @@ class AudioNotifier extends BaseNotifier<AudioState> {
       }
     }
 
+    // For immediate stop, also clear/dispose the buffer stream to stop any buffered audio
+    if (immediate && _bufferStream != null) {
+      try {
+        _soloud.disposeSource(_bufferStream!);
+        _bufferStream = null;
+        debugPrint('🛑 SoLoud buffer stream disposed for immediate stop');
+        // Note: We keep _soloudInitialized = true since the SoLoud instance itself is still initialized
+        // Only the buffer stream is disposed, and it will be recreated on next playback
+      } catch (e) {
+        debugPrint('Error disposing SoLoud buffer stream: $e');
+      }
+    }
+
     _totalAudioBytes = 0;
 
     if (state.isAnimationPlaying) {
@@ -565,7 +631,11 @@ class AudioNotifier extends BaseNotifier<AudioState> {
     }
 
     if (wasPlaying && !silent) {
-      debugPrint('🛑 SoLoud audio playback stopped');
+      debugPrint(
+        immediate
+            ? '🛑 SoLoud audio playback stopped immediately'
+            : '🛑 SoLoud audio playback stopped',
+      );
     }
   }
 
@@ -656,6 +726,10 @@ class AudioNotifier extends BaseNotifier<AudioState> {
               '▶️ FlutterPcmSound started, queue size: ${_audioQueue.length}',
               name: 'AudioNotifier',
             );
+            // Update state to show interrupt button when audio starts playing
+            if (!state.isAnimationPlaying) {
+              state = state.copyWith(isAnimationPlaying: true);
+            }
           } catch (e, stackTrace) {
             // OSStatus -50 (kAudio_ParamError) can occur if audio unit isn't ready
             final errStr = e.toString();
@@ -672,6 +746,10 @@ class AudioNotifier extends BaseNotifier<AudioState> {
                   '✅ FlutterPcmSound started on retry',
                   name: 'AudioNotifier',
                 );
+                // Update state to show interrupt button when audio starts playing
+                if (!state.isAnimationPlaying) {
+                  state = state.copyWith(isAnimationPlaying: true);
+                }
               } catch (e2) {
                 developer.log(
                   '❌ FlutterPcmSound.start failed after retry: $e2',
@@ -790,6 +868,10 @@ class AudioNotifier extends BaseNotifier<AudioState> {
           _soloud.setVolume(_streamHandle!, 1.0);
           _soloud.setPan(_streamHandle!, 0.0);
           debugPrint('🎵 Playback started successfully');
+          // Update state to show interrupt button when audio starts playing
+          if (!state.isAnimationPlaying) {
+            state = state.copyWith(isAnimationPlaying: true);
+          }
         } else {
           debugPrint('⚠️ Stream handle is null after play() call');
         }
@@ -804,6 +886,10 @@ class AudioNotifier extends BaseNotifier<AudioState> {
             _soloud.setVolume(_streamHandle!, 1.0);
             _soloud.setPan(_streamHandle!, 0.0);
             debugPrint('📢 Retried playback after reinitialization');
+            // Update state to show interrupt button when audio starts playing
+            if (!state.isAnimationPlaying) {
+              state = state.copyWith(isAnimationPlaying: true);
+            }
           }
         } catch (retryError) {
           debugPrint('❌ Error in playback retry: $retryError');
@@ -861,12 +947,39 @@ class AudioNotifier extends BaseNotifier<AudioState> {
       '✅ [TTSComplete] Full response: ${fullResponse ?? "null"}',
       name: 'AudioNotifier',
     );
-    _clearStreamedResponse();
     if (fullResponse == null || fullResponse.isEmpty) {
+      addMessage(
+        AiChatMessages(role: 'ai', content: state.streamedResponse ?? ''),
+      );
+      _clearStreamedResponse();
       addMessage(AiChatMessages(role: 'ai', content: 'Interrupted'));
     } else {
+      _clearStreamedResponse();
       addMessage(AiChatMessages(role: 'ai', content: fullResponse));
     }
+
+    // Record when tts_complete was received
+    _ttsCompleteTime = DateTime.now();
+
+    // Wait 3 seconds before disabling interrupt button
+    // If no new audio chunks arrive within 3 seconds, disable the interrupt button
+    _ttsCompleteTimer?.cancel();
+    _ttsCompleteTimer = Timer(const Duration(seconds: 3), () {
+      // Check if new chunks arrived after tts_complete
+      // If _lastAudioChunkTime is after _ttsCompleteTime, new chunks arrived
+      if (_ttsCompleteTime != null &&
+          (_lastAudioChunkTime == null ||
+              _lastAudioChunkTime!.isBefore(_ttsCompleteTime!))) {
+        // No new chunks arrived after tts_complete, disable interrupt button
+        if (state.isAnimationPlaying) {
+          state = state.copyWith(isAnimationPlaying: false);
+          developer.log(
+            '🛑 Disabled interrupt button after 3 seconds (no new chunks)',
+            name: 'AudioNotifier',
+          );
+        }
+      }
+    });
   }
 
   void _handelSessionStarted(Map<String, dynamic> jsonData) {
@@ -887,7 +1000,8 @@ class AudioNotifier extends BaseNotifier<AudioState> {
     _audioInputSubscription?.cancel();
     _audioInputSubscription = null;
 
-    _stopCurrentPlayback();
+    // Stop playback immediately when interrupt is acknowledged
+    _stopCurrentPlayback(immediate: true);
     _audioCompletionTimer?.cancel();
     _audioCompletionTimer = null;
     _totalAudioBytes = 0;
@@ -904,8 +1018,39 @@ class AudioNotifier extends BaseNotifier<AudioState> {
 
   Future<void> startStreamingAudio() async {
     return await runSafely(() async {
-      // Silently stop any existing playback before starting recording
-      _stopCurrentPlayback(silent: true);
+      // Check if audio chunks have arrived (audio is playing)
+      final hasAudioChunks = state.isAnimationPlaying || isAudioPlaying;
+
+      // Disable interrupt button when mic button is tapped
+      _ttsCompleteTimer?.cancel();
+      _ttsCompleteTimer = null;
+      if (state.isAnimationPlaying) {
+        state = state.copyWith(isAnimationPlaying: false);
+        developer.log(
+          '🛑 Disabled interrupt button (mic button pressed)',
+          name: 'AudioNotifier',
+        );
+      }
+
+      // If audio is playing, interrupt it first
+      if (hasAudioChunks) {
+        developer.log(
+          '🛑 Mic button pressed - interrupting audio playback',
+          name: 'AudioNotifier',
+        );
+        // Stop audio playback immediately
+        _stopCurrentPlayback(immediate: true);
+        _audioCompletionTimer?.cancel();
+        _audioCompletionTimer = null;
+        _totalAudioBytes = 0;
+
+        // Send interrupt event to server
+        final interruptEvent = InterruptEventModel(sessionId: state.sessionId);
+        _webSocketManager.send(jsonEncode(interruptEvent.toJson()));
+      } else {
+        // Silently stop any existing playback before starting recording
+        _stopCurrentPlayback(silent: true);
+      }
 
       if (!_webSocketManager.isConnected) {
         setStatusMessage = 'Not connected to WebSocket';
@@ -1006,9 +1151,9 @@ class AudioNotifier extends BaseNotifier<AudioState> {
   Future<void> stopStreamingAudio() async {
     return await runSafely(() async {
       if (_usePcmSound) {
-        _cleanupPcmSound();
+        await _cleanupPcmSound();
       } else {
-        _cleanupSoloud();
+        await _cleanupSoloud();
       }
       if (!state.isRecording) return;
       final endChatEvent = AudioEndMessageModel(sessionId: state.sessionId);
@@ -1031,6 +1176,8 @@ class AudioNotifier extends BaseNotifier<AudioState> {
       _stopCurrentPlayback();
       _audioCompletionTimer?.cancel();
       _audioCompletionTimer = null;
+      _ttsCompleteTimer?.cancel();
+      _ttsCompleteTimer = null;
       _totalAudioBytes = 0;
 
       _stopTalkingAnimation();
@@ -1062,10 +1209,12 @@ class AudioNotifier extends BaseNotifier<AudioState> {
         name: 'AudioNotifier',
       );
 
-      // Stop audio playback FIRST (immediate)
-      _stopCurrentPlayback();
+      // Stop audio playback FIRST (immediate stop - release audio units)
+      _stopCurrentPlayback(immediate: true);
       _audioCompletionTimer?.cancel();
       _audioCompletionTimer = null;
+      _ttsCompleteTimer?.cancel();
+      _ttsCompleteTimer = null;
       _totalAudioBytes = 0;
 
       // Then stop recording
@@ -1121,7 +1270,7 @@ class AudioNotifier extends BaseNotifier<AudioState> {
   }
 
   @override
-  void dispose() {
+  Future<void> dispose() async {
     super.dispose();
     stopStreamingAudio();
     _uiEventSubscription?.cancel();
@@ -1131,11 +1280,13 @@ class AudioNotifier extends BaseNotifier<AudioState> {
     _audioInputSubscription = null;
     _fallbackFeedTimer?.cancel();
     _fallbackFeedTimer = null;
+    _ttsCompleteTimer?.cancel();
+    _ttsCompleteTimer = null;
 
     if (_usePcmSound) {
-      _cleanupPcmSound();
+      await _cleanupPcmSound();
     } else {
-      _cleanupSoloud();
+      await _cleanupSoloud();
     }
     _webSocketManager.dispose();
     _uiEventController.close();
